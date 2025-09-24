@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   doc,
   getDoc,
@@ -64,15 +64,49 @@ function normalizeCapaian(v) {
 
 export default function DetailRaporSiswa() {
   const { nisn } = useParams();
+  const router = useRouter();
   const [rapor, setRapor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [redirectChecked, setRedirectChecked] = useState(false);
 
   const [dsUmum, setDsUmum] = useState([]);     // [{nama}]
   const [dsPondok, setDsPondok] = useState([]); // [{nama, arab?}]
-  const [loadingDs, setLoadingDs] = useState(true);
+  const [loadingDs, setLoadingDs] = useState(true);    
+
+  // PERBAIKAN: Check redirect hanya sekali dan stabil
+  useEffect(() => {
+    if (redirectChecked) return;
+    
+    const RELEASE = new Date("2025-10-01T08:00:00+08:00").getTime();
+    const now = Date.now();
+
+    let role = null;
+    if (typeof window !== "undefined") {
+      try {
+        const local = localStorage.getItem("appUser");
+        if (local) {
+          const parsed = JSON.parse(local);
+          role = parsed.role || null;
+        }
+      } catch (e) {
+        console.warn("Error parsing localStorage:", e);
+      }
+    }
+
+    const isAdmin = role === "admin" || role === "superadmin";
+
+    if (!isAdmin && now < RELEASE) {
+      router.replace(`/rapor-siswa/${encodeURIComponent(nisn)}/gate`);
+      return;
+    }
+    
+    setRedirectChecked(true);
+  }, [router, nisn, redirectChecked]);
 
   // Ambil data rapor by docId = NISN
   useEffect(() => {
+    if (!redirectChecked) return; // Tunggu redirect check selesai
+    
     const run = async () => {
       try {
         const id = String(nisn || "").trim();
@@ -86,10 +120,12 @@ export default function DetailRaporSiswa() {
       }
     };
     run();
-  }, [nisn]);
-
+  }, [nisn, redirectChecked]);
+ 
   // Ambil dataset mapel (umum & pondok)
   useEffect(() => {
+    if (!redirectChecked) return; // Tunggu redirect check selesai
+    
     const run = async () => {
       try {
         let sUmum;
@@ -114,7 +150,7 @@ export default function DetailRaporSiswa() {
       }
     };
     run();
-  }, []);
+  }, [redirectChecked]);
 
   // ==== Semua hooks di bawah ini SELALU dipanggil ====
 
@@ -203,6 +239,7 @@ export default function DetailRaporSiswa() {
 
   // ==== Setelah semua hooks dipanggil, baru conditional return ====
 
+  if (!redirectChecked) return <p className="p-8 text-black">🔍 Memeriksa akses...</p>;
   if (loading || loadingDs) return <p className="p-8 text-black">⏳ Memuat data...</p>;
   if (!rapor) return <p className="p-8 text-red-600">❌ Data tidak ditemukan</p>;
 
@@ -274,72 +311,68 @@ export default function DetailRaporSiswa() {
     </div>
   );
 
-  /* === TABEL KHUSUS: HAFALAN AL-QUR'AN (bukan "tahsin") ===
-     Membaca rap.hafalan (fallback rap.tahfidz) -> { total_juz, target_lembar, tercapai_lembar, keterangan, nilai }
-     Ditaruh DI BAWAH Mapel Pondok. */
-const TableHafalan = () => {
-  const hafalan = rap.hafalan || rap.tahfidz || {};
-  const totalJuz = normalizeNilai(hafalan.total_juz ?? "");
-  const target = normalizeNilai(hafalan.target_lembar ?? "");
-  const tercapai = normalizeNilai(hafalan.tercapai_lembar ?? "");
-  const ket = normalizeCapaian(hafalan.keterangan ?? "");
-  const nilai = normalizeNilai(hafalan.nilai ?? "");
+  const TableHafalan = () => {
+    const hafalan = rap.hafalan || rap.tahfidz || {};
+    const totalJuz = normalizeNilai(hafalan.total_juz ?? "");
+    const target = normalizeNilai(hafalan.target_lembar ?? "");
+    const tercapai = normalizeNilai(hafalan.tercapai_lembar ?? "");
+    const ket = normalizeCapaian(hafalan.keterangan ?? "");
+    const nilai = normalizeNilai(hafalan.nilai ?? "");
 
-  const kosong =
-    String(totalJuz) === "" &&
-    String(target) === "" &&
-    String(tercapai) === "" &&
-    String(ket) === "" &&
-    String(nilai) === "";
+    const kosong =
+      String(totalJuz) === "" &&
+      String(target) === "" &&
+      String(tercapai) === "" &&
+      String(ket) === "" &&
+      String(nilai) === "";
 
-  return (
-    <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-6">
-      <h2 className="bg-emerald-100 text-black p-3 font-semibold">
-        📖 Hafalan Al-Qur’an
-      </h2>
+    return (
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-6">
+        <h2 className="bg-emerald-100 text-black p-3 font-semibold">
+          📖 Hafalan Al-Qur'an
+        </h2>
 
-      {kosong ? (
-        <div className="p-4 text-sm text-gray-600">
-          Belum ada data hafalan untuk siswa ini.
-        </div>
-      ) : (
-        <table className="w-full table-fixed border-collapse text-sm">
-          <thead className="bg-gray-50 text-black">
-            <tr>
-              <th className="p-3 text-left border border-gray-200 w-1/2">Penilaian Hafalan Al-Qur’an</th>
-              <th className="p-3 text-left border border-gray-200 w-1/2"></th>
-            </tr>
-          </thead>
-          <tbody className="text-black">
-            <tr>
-              <td className="p-2 border border-gray-200">Total Hafalan</td>
-              <td className="p-2 border border-gray-200">{totalJuz || "0"} Juz</td>
-            </tr>
-            <tr>
-              <td className="p-2 border border-gray-200">Target Semester</td>
-              <td className="p-2 border border-gray-200">{target || "0"} Lembar</td>
-            </tr>
-            <tr>
-              <td className="p-2 border border-gray-200">Ketercapaian Semester Ini</td>
-              <td className="p-2 border border-gray-200">{tercapai || "0"} Lembar</td>
-            </tr>
-            <tr>
-              <td className="p-2 border border-gray-200">Keterangan</td>
-              <td className="p-2 border border-gray-200 whitespace-pre-wrap break-words">
-                {ket || "—"}
-              </td>
-            </tr>
-            <tr>
-              <td className="p-2 border border-gray-200">Nilai</td>
-              <td className="p-2 border border-gray-200">{nilai || "0"}</td>
-            </tr>
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-};
-
+        {kosong ? (
+          <div className="p-4 text-sm text-gray-600">
+            Belum ada data hafalan untuk siswa ini.
+          </div>
+        ) : (
+          <table className="w-full table-fixed border-collapse text-sm">
+            <thead className="bg-gray-50 text-black">
+              <tr>
+                <th className="p-3 text-left border border-gray-200 w-1/2">Penilaian Hafalan Al-Qur'an</th>
+                <th className="p-3 text-left border border-gray-200 w-1/2"></th>
+              </tr>
+            </thead>
+            <tbody className="text-black">
+              <tr>
+                <td className="p-2 border border-gray-200">Total Hafalan</td>
+                <td className="p-2 border border-gray-200">{totalJuz || "0"} Juz</td>
+              </tr>
+              <tr>
+                <td className="p-2 border border-gray-200">Target Semester</td>
+                <td className="p-2 border border-gray-200">{target || "0"} Lembar</td>
+              </tr>
+              <tr>
+                <td className="p-2 border border-gray-200">Ketercapaian Semester Ini</td>
+                <td className="p-2 border border-gray-200">{tercapai || "0"} Lembar</td>
+              </tr>
+              <tr>
+                <td className="p-2 border border-gray-200">Keterangan</td>
+                <td className="p-2 border border-gray-200 whitespace-pre-wrap break-words">
+                  {ket || "—"}
+                </td>
+              </tr>
+              <tr>
+                <td className="p-2 border border-gray-200">Nilai</td>
+                <td className="p-2 border border-gray-200">{nilai || "0"}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
+  };
 
   const TableAbsensi = () => (
     <div className="bg-white shadow rounded-lg overflow-hidden mt-6">
@@ -395,7 +428,6 @@ const TableHafalan = () => {
 
         <TableUmum />
         <TablePondok />
-        {/* >>> Tambahan: Tabel Hafalan di bawah pondok <<< */}
         <TableHafalan />
         <TableAbsensi />
         <TableCatatanWali />

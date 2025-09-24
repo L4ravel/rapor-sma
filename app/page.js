@@ -149,8 +149,8 @@ export default function Home() {
             <div className="relative z-10 h-full p-8 md:p-10 text-white flex flex-col items-center justify-center text-center">
               <h3 className="text-3xl font-extrabold">Sistem Rapor Digital</h3>
               <p className="mt-3 text-indigo-100 max-w-sm">
-                "Sistem rapor masih dalam tahap uji dan pengembangan. Semua data akan dihapus setelah selesai pembagian rapor tengah semester."
-              </p>
+  &quot;Sistem rapor masih dalam tahap uji dan pengembangan. Semua data akan dihapus setelah selesai pembagian rapor tengah semester.&quot;
+</p>
               <div className="mt-6 flex flex-col sm:flex-row gap-3">
                 <Link
                   href="/input-tahfidz"

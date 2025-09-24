@@ -24,3 +24,50 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 12pt !important; /* biar tetap besar */
+  }
+
+   .print-text {
+    font-size: 12pt !important; /* fix ukuran print */
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+
+  table, th, td {
+    font-size: 10pt !important;
+     padding-left: 4px;  /* atau 8px */
+  padding-right: 4px;
+  }
+
+  .judul-rapor div {
+    font-size: 14pt !important;
+  }
+
+   h2, h3 {
+    font-size: 14pt !important;
+  }
+
+  h1 {
+    font-size: 18pt !important;
+  }
+
+  html, body {
+    height: auto !important;
+  }
+  .no-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Pastikan kertas A4 */
+  @page {
+    size: 210mm 330mm;
+    margin: 0;
+  }
+}
+
+

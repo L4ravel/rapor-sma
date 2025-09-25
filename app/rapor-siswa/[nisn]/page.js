@@ -329,7 +329,7 @@ export default function DetailRaporSiswa() {
     return (
       <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-6">
         <h2 className="bg-emerald-100 text-black p-3 font-semibold">
-          📖 Hafalan Al-Qur'an
+          { "📖 Hafalan Al-Qur'an" }
         </h2>
 
         {kosong ? (
@@ -340,7 +340,7 @@ export default function DetailRaporSiswa() {
           <table className="w-full table-fixed border-collapse text-sm">
             <thead className="bg-gray-50 text-black">
               <tr>
-                <th className="p-3 text-left border border-gray-200 w-1/2">Penilaian Hafalan Al-Qur'an</th>
+                <th className="p-3 text-left border border-gray-200 w-1/2">{ "Penilaian Hafalan Al-Qur'an" }</th>
                 <th className="p-3 text-left border border-gray-200 w-1/2"></th>
               </tr>
             </thead>

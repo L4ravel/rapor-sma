@@ -6,7 +6,7 @@ import Link from "next/link";
 
 /* ================== Konfigurasi ================== */
 const RELEASE_AT_ISO = "2025-10-01T08:00:00+08:00"; // 1 Okt 2025 08:00 WITA
-const TITLE = "Rapor akan terbuka 1 Oktober 2025 • 08.00 WITA";
+const TITLE = "Sistem Rapor Digital";
 
 /* ================== Util waktu ================== */
 const MS = { d: 86400000 };

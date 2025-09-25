@@ -35,7 +35,7 @@ export default function InputNilaiUmumPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // mapel umum (dataset)
+  // mapel umum dari collection mapel_umum
   const [mapelUmumList, setMapelUmumList] = useState([]);
   const [selectedMapelUmum, setSelectedMapelUmum] = useState("");
 
@@ -59,25 +59,57 @@ export default function InputNilaiUmumPage() {
     })();
   }, []);
 
-  /* ---- Load dataset mapel umum ---- */
+  /* ---- Load mapel umum dari collection mapel_umum ---- */
   useEffect(() => {
-    const fetchDatasetMapelUmum = async () => {
+    const fetchMapelUmum = async () => {
       try {
         let snap;
         try {
-          snap = await getDocs(query(collection(db, "dataset_mapel_umum"), orderBy("createdAt", "asc")));
+          // Coba dengan order by createdAt
+          snap = await getDocs(query(collection(db, "mapel_umum"), orderBy("createdAt", "asc")));
         } catch {
-          snap = await getDocs(collection(db, "dataset_mapel_umum"));
+          // Fallback tanpa order jika tidak ada index
+          snap = await getDocs(collection(db, "mapel_umum"));
         }
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        
+        const list = snap.docs.map((d) => ({
+          id: d.id,
+          nama: d.data().nama || "",
+          kelas: d.data().kelas || "",
+          createdAt: d.data().createdAt,
+        }));
+        
         setMapelUmumList(list);
-        if (!selectedMapelUmum && list.length > 0) setSelectedMapelUmum(list[0].nama);
+        if (!selectedMapelUmum && list.length > 0) {
+          setSelectedMapelUmum(list[0].nama);
+        }
       } catch (e) {
-        console.error("Gagal ambil dataset_mapel_umum:", e);
+        console.error("Gagal ambil mapel_umum:", e);
+        alert("Gagal mengambil data mapel umum dari database");
       }
     };
-    fetchDatasetMapelUmum();
-  }, []);
+    fetchMapelUmum();
+  }, [selectedMapelUmum]);
+
+  /* ---- Filter mapel berdasarkan kelas yang dipilih ---- */
+  const availableMapel = useMemo(() => {
+    if (!selectedKelas) {
+      return mapelUmumList; // Tampilkan semua mapel jika tidak ada filter kelas
+    }
+    return mapelUmumList.filter(mapel => 
+      !mapel.kelas || mapel.kelas === selectedKelas
+    );
+  }, [mapelUmumList, selectedKelas]);
+
+  /* ---- Auto-update selected mapel jika tidak tersedia di kelas yang dipilih ---- */
+  useEffect(() => {
+    if (selectedKelas && availableMapel.length > 0) {
+      const isMapelAvailable = availableMapel.some(m => m.nama === selectedMapelUmum);
+      if (!isMapelAvailable) {
+        setSelectedMapelUmum(availableMapel[0].nama);
+      }
+    }
+  }, [selectedKelas, availableMapel, selectedMapelUmum]);
 
   /* ---- Load siswa & rapor ---- */
   const fetchData = async (withSpinner = true) => {
@@ -109,7 +141,7 @@ export default function InputNilaiUmumPage() {
       setData(merged);
     } catch (e) {
       console.error(e);
-      alert("⚠️ Gagal mengambil data");
+      alert("Gagal mengambil data siswa dan rapor");
     } finally {
       if (withSpinner) setLoading(false);
     }
@@ -125,11 +157,18 @@ export default function InputNilaiUmumPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMapelUmum]);
 
-  /* ---- Filter tabel ---- */
-  const filtered = useMemo(
-    () => data.filter((r) => (selectedKelas ? r.kelas === selectedKelas : true)),
-    [data, selectedKelas]
-  );
+  /* ---- Filter siswa berdasarkan kelas ---- */
+  const filtered = useMemo(() => {
+    let result = data;
+    
+    // Filter berdasarkan kelas yang dipilih
+    if (selectedKelas) {
+      result = result.filter((r) => r.kelas === selectedKelas);
+    }
+    
+    return result;
+  }, [data, selectedKelas]);
+
   const visible = filtered.slice(0, 50);
 
   /* ---- Unsaved changes guard: refresh/close tab ---- */
@@ -190,12 +229,12 @@ export default function InputNilaiUmumPage() {
         
         await updateDoc(ref, updates);
       }
-      alert("✅ Nilai tersimpan (mapel lain aman).");
+      alert("Nilai mapel umum tersimpan!");
       setImportInfo({ rows: 0, updated: 0, skippedNew: 0 });
       setDirty(false); // aman setelah simpan
     } catch (e) {
       console.error(e);
-      alert("⚠️ Gagal menyimpan");
+      alert("Gagal menyimpan");
     } finally {
       setSaving(false);
     }
@@ -320,7 +359,7 @@ export default function InputNilaiUmumPage() {
 
         if (!existingNisn.has(nisn)) {
           skippedNew++;
-          continue; // ❗️JANGAN TAMBAH BARU
+          continue; // ❗JANGAN TAMBAH BARU
         }
 
         const old = map.get(nisn);
@@ -370,9 +409,9 @@ export default function InputNilaiUmumPage() {
           >
             ← Kembali ke Beranda
           </button>
-          
         </div>
 
+        
         {/* Toolbar atas */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <button
@@ -420,7 +459,7 @@ export default function InputNilaiUmumPage() {
                   <th rowSpan={2} className="p-1 w-2 border border-gray-300/50 text-center">No</th>
                   <th rowSpan={2} className="p-1 w-4 border border-gray-300/50 text-center">NISN</th>
                   <th rowSpan={2} className="p-1 w-8 border border-gray-300/50 text-center">Nama</th>
-                  <th className="p-2 w-20 border border-gray-300/50 text-center">Daftar Kelas</th>
+                  <th className="p-2 w-20 border border-gray-300/50 text-center">Filter Kelas</th>
                   <th colSpan={2} className="p-2 border border-gray-300/50 text-center">INPUT NILAI MAPEL UMUM</th>
                 </tr>
                 {/* Baris 2 */}
@@ -435,18 +474,23 @@ export default function InputNilaiUmumPage() {
                       {daftarKelas.map((k) => <option key={k} value={k}>{k}</option>)}
                     </select>
                   </th>
-                  {/* Dropdown Mapel umum */}
+                  {/* Dropdown Mapel umum - Terfilter berdasarkan kelas */}
                   <th className="p-2 w-20 border border-gray-300/50 text-center">
                     <select
                       value={selectedMapelUmum}
                       onChange={(e) => handleChangeMapel(e.target.value)}
                       className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-purple-400"
                     >
-                      {mapelUmumList.length === 0 ? (
-                        <option value="">(dataset kosong)</option>
+                      {availableMapel.length === 0 ? (
+                        <option value="">
+                          {selectedKelas ? `(tidak ada mapel untuk kelas ${selectedKelas})` : "(tidak ada mapel)"}
+                        </option>
                       ) : (
-                        mapelUmumList.map((m) => (
-                          <option key={m.id} value={m.nama}>{m.nama}</option>
+                        availableMapel.map((m) => (
+                          <option key={m.id} value={m.nama}>
+                            {m.nama}
+                            {m.kelas && !selectedKelas ? ` - Kelas ${m.kelas}` : ""}
+                          </option>
                         ))
                       )}
                     </select>
@@ -456,50 +500,64 @@ export default function InputNilaiUmumPage() {
               </thead>
 
               <tbody>
-                {visible.map((row, idx) => (
-                  <tr
-                    key={row.nisn || row.id || idx}
-                    className={`transition hover:bg-purple-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                  >
-                    <td className="p-1 text-center border border-gray-300/50 text-black">{idx + 1}</td>
-                    <td className="p-1 text-center border border-gray-300/50 text-black truncate" title={row.nisn}>{row.nisn}</td>
-                    <td className="p-1 border border-gray-300/50 text-black truncate" title={row.nama_siswa}>{row.nama_siswa}</td>
-                    <td className="p-2 text-center border border-gray-300/50 text-black">{row.kelas}</td>
-
-                    {/* Nilai */}
-                    <td className="p-2 w-20 text-center border border-gray-300/50 align-top">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={row.nilaiUmum ?? ""}
-                        onChange={(e) => {
-                          const v = clampScore(e.target.value);
-                          setDirty(true);
-                          setData((prev) => prev.map((r) => (r.nisn === row.nisn ? { ...r, nilaiUmum: v } : r)));
-                        }}
-                        className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-purple-400 min-h-[60px]"
-                        placeholder="0"
-                      />
-                    </td>
-
-                    {/* Capaian */}
-                    <td className="p-2 w-64 border border-gray-300/50 align-top">
-                      <textarea
-                        value={row.capaianUmum ?? ""}
-                        onChange={(e) => {
-                          const v = limitChars(e.target.value, 150);
-                          setDirty(true);
-                          setData((prev) => prev.map((r) => (r.nisn === row.nisn ? { ...r, capaianUmum: v } : r)));
-                        }}
-                        maxLength={150}
-                        className="w-full h-[60px] border rounded-md px-2 py-2 text-sm text-black focus:ring-2 focus:ring-purple-400 shadow-sm resize-none"
-                        placeholder="Tulis capaian kompetensi siswa (maks 150 karakter)"
-                      />
+                {visible.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                      {availableMapel.length === 0 
+                        ? (selectedKelas 
+                          ? `Tidak ada mapel umum untuk kelas ${selectedKelas}`
+                          : "Tidak ada data mapel umum"
+                        )
+                        : "Tidak ada siswa yang sesuai dengan filter"
+                      }
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  visible.map((row, idx) => (
+                    <tr
+                      key={row.nisn || row.id || idx}
+                      className={`transition hover:bg-purple-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                    >
+                      <td className="p-1 text-center border border-gray-300/50 text-black">{idx + 1}</td>
+                      <td className="p-1 text-center border border-gray-300/50 text-black truncate" title={row.nisn}>{row.nisn}</td>
+                      <td className="p-1 border border-gray-300/50 text-black truncate" title={row.nama_siswa}>{row.nama_siswa}</td>
+                      <td className="p-2 text-center border border-gray-300/50 text-black">{row.kelas}</td>
+
+                      {/* Nilai */}
+                      <td className="p-2 w-20 text-center border border-gray-300/50 align-top">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={row.nilaiUmum ?? ""}
+                          onChange={(e) => {
+                            const v = clampScore(e.target.value);
+                            setDirty(true);
+                            setData((prev) => prev.map((r) => (r.nisn === row.nisn ? { ...r, nilaiUmum: v } : r)));
+                          }}
+                          className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-purple-400 min-h-[60px]"
+                          placeholder="0"
+                        />
+                      </td>
+
+                      {/* Capaian */}
+                      <td className="p-2 w-64 border border-gray-300/50 align-top">
+                        <textarea
+                          value={row.capaianUmum ?? ""}
+                          onChange={(e) => {
+                            const v = limitChars(e.target.value, 150);
+                            setDirty(true);
+                            setData((prev) => prev.map((r) => (r.nisn === row.nisn ? { ...r, capaianUmum: v } : r)));
+                          }}
+                          maxLength={150}
+                          className="w-full h-[60px] border rounded-md px-2 py-2 text-sm text-black focus:ring-2 focus:ring-purple-400 shadow-sm resize-none"
+                          placeholder="Tulis capaian kompetensi siswa (maks 150 karakter)"
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -515,7 +573,7 @@ export default function InputNilaiUmumPage() {
           </button>
           <button
             onClick={handleSaveAll}
-            disabled={saving}
+            disabled={saving || availableMapel.length === 0}
             className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 disabled:opacity-50 text-white px-6 py-2 rounded-full shadow-lg hover:from-green-600 hover:to-teal-600 transition text-sm font-semibold"
           >
             {saving ? "💾 Menyimpan..." : "💾 Simpan Semua"}

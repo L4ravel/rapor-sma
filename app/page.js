@@ -128,10 +128,12 @@ export default function Home() {
               )}
             </div>
 
+            {/* Tombol Bio (tetap) */}
             <div className="mt-6 mb-4">
               <ActionBtn href="/bio-sekolah" label="Bio Sekolah" icon="school" />
             </div>
 
+            {/* Grid tombol fitur */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <ActionBtn href="/siswa" label="Lihat Rapor" icon="cap" />
               <ActionBtn href="/input-nilai" label="Input Nilai" icon="pencil" />
@@ -139,6 +141,11 @@ export default function Home() {
               <ActionBtn href="/input-siswa" label="Input Siswa" icon="userPlus" />
               <ActionBtn href="/input-mapel" label="Input Mapel" icon="book" />
               <ActionBtn href="/input-wali" label="Input Wali" icon="users" />
+            </div>
+
+            {/* ── Tambahan: Tombol Preview Rapor (paling bawah, gaya sama dengan Bio) ── */}
+            <div className="mt-6">
+              <ActionBtn href="/preview-nilai" label="Preview Rapor" icon="chart" />
             </div>
           </div>
 
@@ -149,8 +156,8 @@ export default function Home() {
             <div className="relative z-10 h-full p-8 md:p-10 text-white flex flex-col items-center justify-center text-center">
               <h3 className="text-3xl font-extrabold">Sistem Rapor Digital</h3>
               <p className="mt-3 text-indigo-100 max-w-sm">
-  &quot;Sistem rapor masih dalam tahap uji dan pengembangan. Semua data akan dihapus setelah selesai pembagian rapor tengah semester.&quot;
-</p>
+                &quot;Sistem rapor masih dalam tahap uji dan pengembangan. Semua data akan dihapus setelah selesai pembagian rapor tengah semester.&quot;
+              </p>
               <div className="mt-6 flex flex-col sm:flex-row gap-3">
                 <Link
                   href="/input-tahfidz"

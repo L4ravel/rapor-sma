@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebaseConfig"; 
 // Daftar route publik (tidak perlu login)
 const PUBLIC_ROUTES: (string | RegExp)[] = [
   "/login",
@@ -26,24 +26,33 @@ export default function AuthGateClient() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Jika route publik → tidak perlu apa-apa
+    // Jika route publik → tidak perlu gate
     if (isPublic(pathname)) {
       setReady(true);
       return;
     }
 
-    const auth = getAuth();
+    // Hanya jalan di browser
+    if (typeof window === "undefined") return;
 
-    const local = typeof window !== "undefined" ? localStorage.getItem("appUser") : null;
+    // Jika pakai sesi lokal (flow username), izinkan
+    const local = localStorage.getItem("appUser");
     if (local) {
-      // Sudah punya sesi lokal (username login)
       setReady(true);
-      // Jika nyasar ke /login saat sudah login, lempar ke /
       if (pathname === "/login") router.replace("/");
       return;
     }
 
-    // Dengarkan Firebase Auth (admin login)
+    // Pastikan Firebase client siap
+    if (!auth) {
+      // Biasanya terjadi bila di-evaluate di server/SSR
+      // atau modul inisialisasi belum terpanggil di client.
+      // Kita izinkan render dulu agar halaman client sempat inisialisasi.
+      setReady(true);
+      return;
+    }
+
+    // Dengarkan Firebase Auth (flow email/password)
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         setReady(true);
@@ -57,7 +66,7 @@ export default function AuthGateClient() {
     return () => unsub();
   }, [pathname, router]);
 
-  // Tidak perlu render apa pun; ini hanya gate redirect global
+  // Gate tidak merender UI
   if (!ready) return null;
   return null;
 }

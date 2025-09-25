@@ -35,7 +35,7 @@ export default function InputNilaiPondokPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Dataset mapel pondok dari Firestore
+  // Dataset mapel pondok dari collection mapel_pondok
   const [mapelPondokList, setMapelPondokList] = useState([]);
   const [selectedMapelPondok, setSelectedMapelPondok] = useState("");
 
@@ -56,27 +56,38 @@ export default function InputNilaiPondokPage() {
     })();
   }, []);
 
-  /* ---- Load dataset mapel pondok ---- */
+  /* ---- Load mapel pondok dari collection mapel_pondok ---- */
   useEffect(() => {
-    const fetchDatasetMapel = async () => {
+    const fetchMapelPondok = async () => {
       try {
         let snap;
         try {
-          snap = await getDocs(query(collection(db, "dataset_mapel_pondok"), orderBy("createdAt", "asc")));
+          // Coba dengan order by createdAt
+          snap = await getDocs(query(collection(db, "mapel_pondok"), orderBy("createdAt", "asc")));
         } catch {
-          snap = await getDocs(collection(db, "dataset_mapel_pondok"));
+          // Fallback tanpa order jika tidak ada index
+          snap = await getDocs(collection(db, "mapel_pondok"));
         }
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        
+        const list = snap.docs.map((d) => ({
+          id: d.id,
+          nama: d.data().nama || "",
+          arab: d.data().arab || "",
+          kelas: d.data().kelas || "",
+          createdAt: d.data().createdAt,
+        }));
+        
         setMapelPondokList(list);
         if (!selectedMapelPondok && list.length > 0) {
           setSelectedMapelPondok(list[0].nama);
         }
       } catch (e) {
-        console.error("Gagal ambil dataset_mapel_pondok:", e);
+        console.error("Gagal ambil mapel_pondok:", e);
+        alert("Gagal mengambil data mapel pondok dari database");
       }
     };
-    fetchDatasetMapel();
-  }, []);
+    fetchMapelPondok();
+  }, [selectedMapelPondok]);
 
   /* ---- Load siswa & rapor ---- */
   const fetchData = async (withSpinner = true) => {
@@ -105,14 +116,14 @@ export default function InputNilaiPondokPage() {
           ...s,
           id: s.id || s.nisn,
           nilaiPondok: nested.nilai ?? nilaiFlat ?? "",
-          capaianPondok: nested.capaian ?? r[`capaian_${selectedMapelPondok}`] ?? "", // optional, kalau nanti dipakai
+          capaianPondok: nested.capaian ?? r[`capaian_${selectedMapelPondok}`] ?? "",
         };
       });
 
       setData(merged);
     } catch (e) {
       console.error(e);
-      alert("⚠️ Gagal mengambil data");
+      alert("Gagal mengambil data siswa dan rapor");
     } finally {
       if (withSpinner) setLoading(false);
     }
@@ -127,11 +138,38 @@ export default function InputNilaiPondokPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMapelPondok]);
 
-  /* ---- Filter + Limit 50 ---- */
-  const filtered = useMemo(
-    () => data.filter((r) => (selectedKelas ? r.kelas === selectedKelas : true)),
-    [data, selectedKelas]
-  );
+  /* ---- Filter mapel berdasarkan kelas yang dipilih ---- */
+  const availableMapel = useMemo(() => {
+    if (!selectedKelas) {
+      return mapelPondokList; // Tampilkan semua mapel jika tidak ada filter kelas
+    }
+    return mapelPondokList.filter(mapel => 
+      !mapel.kelas || mapel.kelas === selectedKelas
+    );
+  }, [mapelPondokList, selectedKelas]);
+
+  /* ---- Auto-update selected mapel jika tidak tersedia di kelas yang dipilih ---- */
+  useEffect(() => {
+    if (selectedKelas && availableMapel.length > 0) {
+      const isMapelAvailable = availableMapel.some(m => m.nama === selectedMapelPondok);
+      if (!isMapelAvailable) {
+        setSelectedMapelPondok(availableMapel[0].nama);
+      }
+    }
+  }, [selectedKelas, availableMapel, selectedMapelPondok]);
+
+  /* ---- Filter siswa berdasarkan kelas ---- */
+  const filtered = useMemo(() => {
+    let result = data;
+    
+    // Filter berdasarkan kelas yang dipilih
+    if (selectedKelas) {
+      result = result.filter((r) => r.kelas === selectedKelas);
+    }
+    
+    return result;
+  }, [data, selectedKelas]);
+
   const visible = useMemo(() => filtered.slice(0, 50), [filtered]);
 
   /* ---- Unsaved changes guard ---- */
@@ -207,7 +245,7 @@ export default function InputNilaiPondokPage() {
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array", cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false }); // a-o-a
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
 
     if (!rows || !rows.length) {
       alert("Excel kosong / tidak terbaca.");
@@ -265,7 +303,7 @@ export default function InputNilaiPondokPage() {
 
         if (!existingNisn.has(nisn)) {
           skippedNew++;
-          continue; // tidak menambah siswa baru
+          continue;
         }
 
         const old = map.get(nisn);
@@ -317,12 +355,12 @@ export default function InputNilaiPondokPage() {
 
         await updateDoc(ref, updates);
       }
-      alert("✅ Nilai mapel pondok tersimpan!");
+      alert("Nilai mapel pondok tersimpan!");
       setImportInfo({ rows: 0, updated: 0, skippedNew: 0 });
       setDirty(false);
     } catch (e) {
       console.error(e);
-      alert("⚠️ Gagal menyimpan");
+      alert("Gagal menyimpan");
     } finally {
       setSaving(false);
     }
@@ -338,6 +376,8 @@ export default function InputNilaiPondokPage() {
             ← Kembali
           </button>
         </div>
+
+       
 
         {/* Toolbar atas */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -385,7 +425,7 @@ export default function InputNilaiPondokPage() {
                   <th rowSpan={2} className="p-1 w-2 border border-gray-300/50 text-center">No</th>
                   <th rowSpan={2} className="p-1 w-4 border border-gray-300/50 text-center">NISN</th>
                   <th rowSpan={2} className="p-1 w-8 border border-gray-300/50 text-center">Nama</th>
-                  <th className="p-2 w-20 border border-gray-300/50 text-center">Daftar Kelas</th>
+                  <th className="p-2 w-20 border border-gray-300/50 text-center">Filter Kelas</th>
                   <th className="p-2 border border-gray-300/50 text-center">INPUT NILAI MAPEL PONDOK</th>
                 </tr>
                 {/* Baris 2 */}
@@ -402,19 +442,22 @@ export default function InputNilaiPondokPage() {
                     </select>
                   </th>
 
-                  {/* Dropdown Mapel Pondok */}
+                  {/* Dropdown Mapel Pondok - Terfilter berdasarkan kelas */}
                   <th className="p-2 w-28 border border-gray-300/50 text-center">
                     <select
                       value={selectedMapelPondok}
                       onChange={(e) => handleChangeMapel(e.target.value)}
                       className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-emerald-400"
                     >
-                      {mapelPondokList.length === 0 ? (
-                        <option value="">(dataset kosong)</option>
+                      {availableMapel.length === 0 ? (
+                        <option value="">
+                          {selectedKelas ? `(tidak ada mapel untuk kelas ${selectedKelas})` : "(tidak ada mapel)"}
+                        </option>
                       ) : (
-                        mapelPondokList.map((m) => (
+                        availableMapel.map((m) => (
                           <option key={m.id} value={m.nama}>
                             {m.arab ? `${m.nama} (${m.arab})` : m.nama}
+                            {m.kelas && !selectedKelas ? ` - Kelas ${m.kelas}` : ""}
                           </option>
                         ))
                       )}
@@ -424,35 +467,49 @@ export default function InputNilaiPondokPage() {
               </thead>
 
               <tbody>
-                {visible.map((row, idx) => (
-                  <tr
-                    key={row.nisn || row.id || idx}
-                    className={`transition hover:bg-emerald-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                  >
-                    <td className="p-1 text-center border border-gray-300/50 text-black">{idx + 1}</td>
-                    <td className="p-1 text-center border border-gray-300/50 text-black truncate" title={row.nisn}>{row.nisn}</td>
-                    <td className="p-1 border border-gray-300/50 text-black truncate" title={row.nama_siswa}>{row.nama_siswa}</td>
-                    <td className="p-2 text-center border border-gray-300/50 text-black">{row.kelas}</td>
-
-                    {/* Nilai */}
-                    <td className="p-2 w-20 text-center border border-gray-300/50 align-top">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={row.nilaiPondok ?? ""}
-                        onChange={(e) => {
-                          const v = clampScore(e.target.value);
-                          setDirty(true);
-                          setData((prev) => prev.map((r) => (r.nisn === row.nisn ? { ...r, nilaiPondok: v } : r)));
-                        }}
-                        className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-emerald-400 min-h-[60px]"
-                        placeholder="0"
-                      />
+                {visible.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-gray-500">
+                      {availableMapel.length === 0 
+                        ? (selectedKelas 
+                          ? `Tidak ada mapel pondok untuk kelas ${selectedKelas}`
+                          : "Tidak ada data mapel pondok"
+                        )
+                        : "Tidak ada siswa yang sesuai dengan filter"
+                      }
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  visible.map((row, idx) => (
+                    <tr
+                      key={row.nisn || row.id || idx}
+                      className={`transition hover:bg-emerald-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                    >
+                      <td className="p-1 text-center border border-gray-300/50 text-black">{idx + 1}</td>
+                      <td className="p-1 text-center border border-gray-300/50 text-black truncate" title={row.nisn}>{row.nisn}</td>
+                      <td className="p-1 border border-gray-300/50 text-black truncate" title={row.nama_siswa}>{row.nama_siswa}</td>
+                      <td className="p-2 text-center border border-gray-300/50 text-black">{row.kelas}</td>
+
+                      {/* Nilai */}
+                      <td className="p-2 w-20 text-center border border-gray-300/50 align-top">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={row.nilaiPondok ?? ""}
+                          onChange={(e) => {
+                            const v = clampScore(e.target.value);
+                            setDirty(true);
+                            setData((prev) => prev.map((r) => (r.nisn === row.nisn ? { ...r, nilaiPondok: v } : r)));
+                          }}
+                          className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-emerald-400 min-h-[60px]"
+                          placeholder="0"
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -465,7 +522,7 @@ export default function InputNilaiPondokPage() {
           </Link>
           <button
             onClick={handleSaveAll}
-            disabled={saving}
+            disabled={saving || availableMapel.length === 0}
             className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 disabled:opacity-50 text-white px-6 py-2 rounded-full shadow-lg hover:from-green-600 hover:to-teal-600 transition text-sm font-semibold"
           >
             {saving ? "💾 Menyimpan..." : "💾 Simpan Semua"}

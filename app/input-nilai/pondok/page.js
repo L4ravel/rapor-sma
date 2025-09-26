@@ -158,16 +158,16 @@ export default function InputNilaiPondokPage() {
     }
   }, [selectedKelas, availableMapel, selectedMapelPondok]);
 
-  /* ---- Filter siswa berdasarkan kelas ---- */
+  /* ---- Filter siswa berdasarkan kelas + SORT NAMA A→Z ---- */
   const filtered = useMemo(() => {
     let result = data;
-    
-    // Filter berdasarkan kelas yang dipilih
     if (selectedKelas) {
       result = result.filter((r) => r.kelas === selectedKelas);
     }
-    
-    return result;
+    // ⬇️ Penambahan: urutkan berdasarkan nama_siswa (A-Z), case-insensitive, locale Indonesia
+    return [...result].sort((a, b) =>
+      String(a?.nama_siswa || "").localeCompare(String(b?.nama_siswa || ""), "id", { sensitivity: "base" })
+    );
   }, [data, selectedKelas]);
 
   const visible = useMemo(() => filtered.slice(0, 50), [filtered]);
@@ -376,8 +376,6 @@ export default function InputNilaiPondokPage() {
             ← Kembali
           </button>
         </div>
-
-       
 
         {/* Toolbar atas */}
         <div className="flex flex-wrap items-center gap-2 mb-4">

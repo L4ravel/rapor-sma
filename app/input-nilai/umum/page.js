@@ -157,7 +157,7 @@ export default function InputNilaiUmumPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMapelUmum]);
 
-  /* ---- Filter siswa berdasarkan kelas ---- */
+  /* ---- Filter siswa berdasarkan kelas dan urutkan berdasarkan nama A-Z ---- */
   const filtered = useMemo(() => {
     let result = data;
     
@@ -165,6 +165,13 @@ export default function InputNilaiUmumPage() {
     if (selectedKelas) {
       result = result.filter((r) => r.kelas === selectedKelas);
     }
+    
+    // Urutkan berdasarkan nama siswa A-Z
+    result = result.sort((a, b) => {
+      const namaA = (a.nama_siswa || "").toLowerCase();
+      const namaB = (b.nama_siswa || "").toLowerCase();
+      return namaA.localeCompare(namaB);
+    });
     
     return result;
   }, [data, selectedKelas]);
@@ -246,13 +253,19 @@ export default function InputNilaiUmumPage() {
     const XLSX = XLSXRef.current;
 
     const header = ["nisn", "nama_siswa", "kelas", "nilai", "capaian"];
-    const rows = (selectedKelas ? data.filter((d) => d.kelas === selectedKelas) : data).map((r) => [
-      r.nisn,
-      r.nama_siswa,
-      r.kelas,
-      "",
-      "",
-    ]);
+    const rows = (selectedKelas ? data.filter((d) => d.kelas === selectedKelas) : data)
+      .sort((a, b) => {
+        const namaA = (a.nama_siswa || "").toLowerCase();
+        const namaB = (b.nama_siswa || "").toLowerCase();
+        return namaA.localeCompare(namaB);
+      })
+      .map((r) => [
+        r.nisn,
+        r.nama_siswa,
+        r.kelas,
+        "",
+        "",
+      ]);
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
@@ -266,13 +279,19 @@ export default function InputNilaiUmumPage() {
     const XLSX = XLSXRef.current;
 
     const header = ["nisn", "nama_siswa", "kelas", `nilai_${selectedMapelUmum}`, `capaian_${selectedMapelUmum}`];
-    const rows = (selectedKelas ? data.filter((d) => d.kelas === selectedKelas) : data).map((r) => [
-      String(r.nisn ?? ""),
-      r.nama_siswa ?? "",
-      r.kelas ?? "",
-      r.nilaiUmum ?? "",
-      r.capaianUmum ?? "",
-    ]);
+    const rows = (selectedKelas ? data.filter((d) => d.kelas === selectedKelas) : data)
+      .sort((a, b) => {
+        const namaA = (a.nama_siswa || "").toLowerCase();
+        const namaB = (b.nama_siswa || "").toLowerCase();
+        return namaA.localeCompare(namaB);
+      })
+      .map((r) => [
+        String(r.nisn ?? ""),
+        r.nama_siswa ?? "",
+        r.kelas ?? "",
+        r.nilaiUmum ?? "",
+        r.capaianUmum ?? "",
+      ]);
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
@@ -359,7 +378,7 @@ export default function InputNilaiUmumPage() {
 
         if (!existingNisn.has(nisn)) {
           skippedNew++;
-          continue; // ❗JANGAN TAMBAH BARU
+          continue; // ◆JANGAN TAMBAH BARU
         }
 
         const old = map.get(nisn);

@@ -58,7 +58,7 @@ export default function InputTahfidzPage() {
 
   // Filter per kelas & batasi 30 data
   const filtered = data.filter((r) => (selectedKelas ? r.kelas === selectedKelas : true));
-  const visible = filtered.slice(0, 30);
+  const visible = filtered.slice(0, 50);
 
   // Simpan semua baris yang sedang terfilter
   const handleSaveAll = async () => {

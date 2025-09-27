@@ -538,7 +538,7 @@ export default function InputSiswaPage() {
             />
           </div>
           <div className="col-span-2">
-            <label className="block text-sm text-slate-700 mb-1">Kelas</label>
+            <label className="block text-sm text-slate-700 mb-1">Kelas </label>
             <SelectKelas
               value={editDraft.kelas}
               onChange={(v) => setEditDraft((p) => ({ ...p, kelas: v }))}

@@ -43,6 +43,14 @@ export default function InputTahfidzPage() {
         };
       });
 
+      // ✅ Urutkan nama siswa A→Z (tanpa mengubah logika lain)
+      merged.sort((a, b) =>
+        String(a.nama_siswa || "").localeCompare(String(b.nama_siswa || ""), "id", {
+          sensitivity: "base",
+          numeric: false,
+        })
+      );
+
       setData(merged);
     } catch (e) {
       console.error(e);

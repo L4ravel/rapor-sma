@@ -288,7 +288,7 @@ export default function InputTahfidzPage() {
             disabled={saving}
             className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 disabled:opacity-50 text-white px-6 py-2 rounded-full shadow-lg hover:from-green-600 hover:to-teal-600 transition text-sm font-semibold"
           >
-            {saving ? "💾 Menyimpan..." : "💾 Simpan Semua"}
+            {saving ? "💾 Menyimpan.." : "💾 Simpan Semua"}
           </button>
         </div>
       </div>

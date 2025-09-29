@@ -260,9 +260,14 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
       </div>
 
       {/* JUDUL */}
-      <h1 className="text-center font-semibold text-[14px] tracking-wide mt-8 mb-6">
-        LAPORAN HASIL BELAJAR
-      </h1>
+      <div className="judul-rapor text-center mt-8 mb-6 leading-none">
+  <div className="font-semibold tracking-wide">
+    LAPORAN HASIL BELAJAR
+  </div>
+  <div className="font-semibold tracking-wide">
+    SUMATIF TENGAH SEMESTER
+  </div>
+</div>
 
       {/* TABEL NILAI UMUM */}
       <table className="w-full border border-black border-collapse">

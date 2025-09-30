@@ -331,7 +331,7 @@ export default function CetakRaporUmum() {
         </table>
 
         {/* ===== EKSTRAKURIKULER (placeholder) ===== */}
-        <div className="mt-3">
+        {/* <div className="mt-3">
           <table className="w-full border border-black border-collapse text-[11px]">
             <thead className="bg-purple-100 font-bold">
               <tr>
@@ -352,7 +352,7 @@ export default function CetakRaporUmum() {
               ))}
             </tbody>
           </table>
-        </div>
+        </div> */}
 
         {/* ===== ABSENSI ===== */}
         <div className="mt-3 grid grid-cols-2 gap-4">
@@ -391,7 +391,7 @@ export default function CetakRaporUmum() {
         </div>
 
         {/* ===== TANDA TANGAN (halaman baru) ===== */}
-        <div className="mt-10 print:break-before-page">
+        
           <table className="w-full text-[11px] leading-tight">
             <tbody>
               {/* Baris 1: Orang Tua/Wali | Wali Kelas */}
@@ -429,7 +429,7 @@ export default function CetakRaporUmum() {
               </tr>
             </tbody>
           </table>
-        </div>
+      
 
         {/* Tombol Print (hide saat print) */}
         <div className="mt-3 print:hidden">

@@ -53,9 +53,11 @@ export default function AbsensiSiswaPage() {
     fetchData(true);
   }, []);
 
-  // Filter per kelas & batasi 30 data (tetap)
-  const filtered = data.filter((r) => (selectedKelas ? r.kelas === selectedKelas : true));
-  const visible = filtered.slice(0, 30);
+  // Filter per kelas, urutkan alfabetis, & batasi 50 data
+  const filtered = data
+    .filter((r) => (selectedKelas ? r.kelas === selectedKelas : true))
+    .sort((a, b) => (a.nama_siswa || "").localeCompare(b.nama_siswa || ""));
+  const visible = filtered.slice(0, 50);
 
   // Simpan semua (termasuk catatan_wali)
   const handleSaveAll = async () => {

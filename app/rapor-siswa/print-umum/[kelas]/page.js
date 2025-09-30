@@ -319,7 +319,7 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
       </table>
 
       {/* EKSTRAKURIKULER (placeholder) */}
-      <div className="mt-3">
+      {/* <div className="mt-3">
         <table className="w-full border border-black border-collapse text-[11px]">
           <thead className="bg-purple-100 font-bold">
             <tr>
@@ -346,7 +346,7 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </div> */}
 
       {/* ABSENSI */}
       <div className="mt-3 grid grid-cols-2 gap-4">
@@ -401,7 +401,7 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
       </div>
 
       {/* TANDA TANGAN */}
-      <div className="mt-10 print:break-before-page">
+     
         <table className="w-full text-[11px] leading-tight">
           <tbody>
             <tr>
@@ -435,7 +435,7 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
             </tr>
           </tbody>
         </table>
-      </div>
+     
     </div>
   );
 }

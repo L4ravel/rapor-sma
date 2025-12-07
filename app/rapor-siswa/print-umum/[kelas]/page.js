@@ -129,7 +129,6 @@ function computeRowsUmum(data, datasetUmum) {
 
     const nilaiRaw =
       nilaiMap[key] ??
-      // fallback ringan: kalau dataset pakai spasi, nilai pakai underscore (atau sebaliknya)
       nilaiMap[key.replace(/ /g, "_")] ??
       nilaiMap[key.replace(/ /g, "")];
 
@@ -151,29 +150,6 @@ function computeRowsUmum(data, datasetUmum) {
     }
   }
 
-  // 5) Tambah kandidat lain yang mungkin tidak ada di dataset (opsional)
-  //    -> Dikomentari agar ketat mengikuti dataset. Jika ingin fleksibel, buka blok di bawah:
-  /*
-  for (const [cKey, nilaiRaw] of Object.entries(nilaiMap)) {
-    if (idxUmum.has(cKey)) continue; // sudah masuk dari dataset
-    const capaianRaw =
-      capaianMap[cKey] ??
-      capaianMap[cKey.replace(/ /g, "_")] ??
-      capaianMap[cKey.replace(/ /g, "")];
-
-    const nilai = normalizeNilai(nilaiRaw);
-    const capaian = normalizeCapaian(capaianRaw);
-    if (hasValue(nilai) && hasValue(capaian)) {
-      rows.push({
-        mapel: cKey, // tidak ada di dataset, pakai kunci canon
-        nilai,
-        capaian,
-        _order: 1000 + rows.length,
-      });
-    }
-  }
-  */
-
   rows.sort((a, b) => a._order - b._order);
 
   return {
@@ -189,19 +165,24 @@ function computeRowsUmum(data, datasetUmum) {
   };
 }
 
-/** ====== Komponen sheet satu siswa (layout = cetak-umum) ====== */
+/** ====== Komponen sheet satu siswa (layout ≈ cetak-umum satu-persatu) ====== */
 function SheetUmum({ rapor, wali, bio, datasetUmum }) {
   const { rowsUmum, biodata } = useMemo(
     () => computeRowsUmum(rapor, datasetUmum),
     [rapor, datasetUmum]
   );
 
+  const ttdKepalaSekolahUrl =
+    bio?.kepala_sekolah_ttd || bio?.kepala_sekolah_foto || "";
+  const waktuPembagianRaport =
+    bio?.waktuPembagianRaport || "Jadwal belum ditentukan";
+
   return (
     <div
       className="mx-auto w-[210mm] min-h-[297mm] bg-white text-black p-4 print:p-6 print:break-after-page last:print:break-after-auto"
       style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
     >
-      {/* HEADER IDENTITAS */}
+      {/* HEADER IDENTITAS – sama dengan cetak-umum satu siswa */}
       <div
         className="leading-snug"
         style={{ fontSize: "11pt", fontFamily: "Arial, Helvetica, sans-serif" }}
@@ -240,34 +221,35 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
               <span className="font-bold">{biodata.kelas}</span>
             </div>
             <div className="flex">
-              <span className="w-32">Fase</span>
-              <span className="w-4 text-center">:</span>
-              <span>{bio?.fase || "—"}</span>
-            </div>
-            <div className="flex">
               <span className="w-32">Semester</span>
               <span className="w-4 text-center">:</span>
-              <span>{biodata.semester}</span>
+              <span>{bio?.semesterUmum || biodata.semester || "-"}</span>
+            </div>
+            <div className="flex">
+              <span className="w-32">Fase</span>
+              <span className="w-4 text-center">:</span>
+              <span>{bio?.fase || biodata.fase || "-"}</span>
             </div>
             <div className="flex">
               <span className="w-32">Tahun Pelajaran</span>
               <span className="w-4 text-center">:</span>
-              <span>{biodata.tahun}</span>
+              <span>
+                {bio?.tahunPelajaranUmum || biodata.tahun || "-"}
+              </span>
             </div>
           </div>
         </div>
         <div className="border-b border-black mt-2.5" />
       </div>
 
-      {/* JUDUL */}
+      {/* JUDUL – sama dengan cetak-umum (satu baris) */}
       <div className="judul-rapor text-center mt-8 mb-6 leading-none">
-  <div className="font-semibold tracking-wide">
-    LAPORAN HASIL BELAJAR
-  </div>
-  <div className="font-semibold tracking-wide">
-    SUMATIF TENGAH SEMESTER
-  </div>
-</div>
+        <div className="font-semibold tracking-wide">LAPORAN HASIL BELAJAR</div>
+        {/* baris kedua disembunyikan seperti di page cetak satu siswa */}
+        {/* <div className="font-semibold tracking-wide">
+          SUMATIF AKHIR SEMESTER
+        </div> */}
+      </div>
 
       {/* TABEL NILAI UMUM */}
       <table className="w-full border border-black border-collapse">
@@ -294,7 +276,7 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
                 colSpan={4}
                 className="border border-black p-0 text-center align-middle"
               >
-                Tidak ada data.
+                Tidak ada data (dataset kosong atau belum ada nilai/capaian).
               </td>
             </tr>
           ) : (
@@ -318,8 +300,8 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
         </tbody>
       </table>
 
-      {/* EKSTRAKURIKULER (placeholder) */}
-      {/* <div className="mt-3">
+      {/* EKSTRAKURIKULER – sama dengan single-page (2 baris kosong) */}
+      <div className="mt-3">
         <table className="w-full border border-black border-collapse text-[11px]">
           <thead className="bg-purple-100 font-bold">
             <tr>
@@ -346,10 +328,10 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
             ))}
           </tbody>
         </table>
-      </div> */}
+      </div>
 
-      {/* ABSENSI */}
-      <div className="mt-3 grid grid-cols-2 gap-4">
+      {/* ABSENSI – sama dengan single */}
+      <div className="mt-3 grid grid-cols-1 gap-4">
         <table className="w-full border border-black border-collapse mt-4">
           <thead className="bg-purple-100 text-[11px] font-bold">
             <tr>
@@ -390,28 +372,97 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
         </table>
       </div>
 
-      {/* CATATAN WALI KELAS */}
+      {/* CATATAN WALI KELAS – tekstual sama dengan single */}
       <div className="mt-4">
         <div className="font-bold mb-1 text-[11px]">Catatan Wali Kelas</div>
         <div className="border border-black p-2 text-[11px] leading-tight whitespace-pre-wrap break-words text-center">
           {rapor.catatan_wali && String(rapor.catatan_wali).trim() !== ""
             ? rapor.catatan_wali
-            : "—"}
+            : "— (Belum ada catatan wali kelas)"}
         </div>
       </div>
 
-      {/* TANDA TANGAN */}
-     
+            {/* TANDA TANGAN – HALAMAN 2 (khusus print ada kop lagi) */}
+      <div className="mt-8 print:break-before-page">
+        {/* Kop halaman 2: hanya muncul saat print */}
+        <div
+          className="hidden print:block leading-snug mb-4"
+          style={{
+            fontSize: "11pt",
+            fontFamily: "Arial, Helvetica, sans-serif",
+          }}
+        >
+          <div className="grid grid-cols-[1.3fr_1fr] gap-x-20">
+            {/* kiri */}
+            <div className="space-y-1">
+              <div className="flex">
+                <span className="w-36">Nama</span>
+                <span className="w-4 text-center">:</span>
+                <span className="font-bold">{biodata.nama}</span>
+              </div>
+              <div className="flex">
+                <span className="w-36">NIS/NISN</span>
+                <span className="w-4 text-center">:</span>
+                <span>- / {biodata.nisn}</span>
+              </div>
+              <div className="flex">
+                <span className="w-36">Nama Sekolah</span>
+                <span className="w-4 text-center">:</span>
+                <span className="whitespace-nowrap">
+                  {bio?.nama_sekolah || "—"}
+                </span>
+              </div>
+              <div className="flex">
+                <span className="w-36">Alamat</span>
+                <span className="w-4 text-center">:</span>
+                <span className="whitespace-nowrap">
+                  {bio?.alamat || "—"}
+                </span>
+              </div>
+            </div>
+
+            {/* kanan */}
+            <div className="space-y-1">
+              <div className="flex">
+                <span className="w-32">Kelas</span>
+                <span className="w-4 text-center">:</span>
+                <span className="font-bold">{biodata.kelas}</span>
+              </div>
+              <div className="flex">
+                <span className="w-32">Semester</span>
+                <span className="w-4 text-center">:</span>
+                <span>{bio?.semesterUmum || biodata.semester || "-"}</span>
+              </div>
+              <div className="flex">
+                <span className="w-32">Fase</span>
+                <span className="w-4 text-center">:</span>
+                <span>{bio?.fase || biodata.fase || "-"}</span>
+              </div>
+              <div className="flex">
+                <span className="w-32">Tahun Pelajaran</span>
+                <span className="w-4 text-center">:</span>
+                <span>
+                  {bio?.tahunPelajaranUmum || biodata.tahun || "-"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="border-b border-black mt-2.5" />
+        </div>
+
+        {/* Tabel tanda tangan (muncul di layar & print) */}
         <table className="w-full text-[11px] leading-tight">
           <tbody>
+            {/* Baris 1: Orang Tua/Wali | Wali Kelas */}
             <tr>
               <td className="w-1/2 align-top p-2">
                 <div>Mengetahui</div>
                 <div>Orang Tua/Wali,</div>
                 <div className="mt-16">......................</div>
               </td>
+
               <td className="w-1/2 align-top p-2 text-right">
-                <div>Bagek Nyaka, 1 Oktober 2025</div>
+                <div>{waktuPembagianRaport}</div>
                 <div>Wali Kelas,</div>
                 <div className="mt-16 inline-block text-left">
                   <div className="font-bold underline">
@@ -421,11 +472,24 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
                 </div>
               </td>
             </tr>
+
+            {/* Baris 2: Kepala Sekolah */}
             <tr>
               <td colSpan={2} className="p-2 text-center align-top">
                 <div>Mengetahui</div>
                 <div>Kepala Sekolah</div>
-                <div className="mt-16 inline-block text-center">
+
+                <div className="mt-3 inline-block text-center">
+                  {ttdKepalaSekolahUrl && (
+                    <div className="mb-0.5 flex justify-center">
+                      <img
+                        src={ttdKepalaSekolahUrl}
+                        alt="Tanda tangan Kepala Sekolah"
+                        className="h-16 w-40 object-contain"
+                      />
+                    </div>
+                  )}
+
                   <div className="font-bold underline">
                     {formatNamaGelar(bio?.kepala_sekolah)}
                   </div>
@@ -435,7 +499,8 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
             </tr>
           </tbody>
         </table>
-     
+      </div>
+
     </div>
   );
 }
@@ -459,7 +524,10 @@ export default function PrintUmumKelas() {
         let snap;
         try {
           snap = await getDocs(
-            query(collection(db, "dataset_mapel_umum"), orderBy("createdAt", "asc"))
+            query(
+              collection(db, "dataset_mapel_umum"),
+              orderBy("createdAt", "asc")
+            )
           );
         } catch {
           // fallback tanpa index/orderBy
@@ -505,7 +573,7 @@ export default function PrintUmumKelas() {
   }, [kelas]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-black scroll-hide">
+    <div className="min-h-screen bg-white text-black scroll-hide">
       <style>{`
         /* sembunyikan scrollbar visual */
         .scroll-hide { overflow: auto; -ms-overflow-style: none; scrollbar-width: none; }
@@ -517,7 +585,9 @@ export default function PrintUmumKelas() {
       `}</style>
 
       <div className="no-print sticky top-0 z-10 bg-white border-b border-slate-200 p-3 flex items-center gap-3">
-        <div className="font-semibold">Print Rapor Umum — Kelas {kelas}</div>
+        <div className="font-semibold">
+          Print Rapor Umum — Kelas {kelas}
+        </div>
         <div className="ml-auto text-sm text-slate-500">
           Total siswa: {loading ? "…" : siswa.length}
         </div>

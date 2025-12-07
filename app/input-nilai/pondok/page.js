@@ -63,12 +63,14 @@ export default function InputNilaiPondokPage() {
         let snap;
         try {
           // Coba dengan order by createdAt
-          snap = await getDocs(query(collection(db, "mapel_pondok"), orderBy("createdAt", "asc")));
+          snap = await getDocs(
+            query(collection(db, "mapel_pondok"), orderBy("createdAt", "asc"))
+          );
         } catch {
           // Fallback tanpa order jika tidak ada index
           snap = await getDocs(collection(db, "mapel_pondok"));
         }
-        
+
         const list = snap.docs.map((d) => ({
           id: d.id,
           nama: d.data().nama || "",
@@ -76,7 +78,7 @@ export default function InputNilaiPondokPage() {
           kelas: d.data().kelas || "",
           createdAt: d.data().createdAt,
         }));
-        
+
         setMapelPondokList(list);
         if (!selectedMapelPondok && list.length > 0) {
           setSelectedMapelPondok(list[0].nama);
@@ -130,6 +132,13 @@ export default function InputNilaiPondokPage() {
   };
 
   useEffect(() => {
+  // kalau belum ada kelas terpilih, otomatis pakai kelas pertama
+  if (!selectedKelas && daftarKelas.length > 0) {
+    setSelectedKelas(daftarKelas[0]);
+  }
+}, [daftarKelas, selectedKelas]);
+
+  useEffect(() => {
     fetchData(true);
   }, []);
 
@@ -143,15 +152,17 @@ export default function InputNilaiPondokPage() {
     if (!selectedKelas) {
       return mapelPondokList; // Tampilkan semua mapel jika tidak ada filter kelas
     }
-    return mapelPondokList.filter(mapel => 
-      !mapel.kelas || mapel.kelas === selectedKelas
+    return mapelPondokList.filter(
+      (mapel) => !mapel.kelas || mapel.kelas === selectedKelas
     );
   }, [mapelPondokList, selectedKelas]);
 
   /* ---- Auto-update selected mapel jika tidak tersedia di kelas yang dipilih ---- */
   useEffect(() => {
     if (selectedKelas && availableMapel.length > 0) {
-      const isMapelAvailable = availableMapel.some(m => m.nama === selectedMapelPondok);
+      const isMapelAvailable = availableMapel.some(
+        (m) => m.nama === selectedMapelPondok
+      );
       if (!isMapelAvailable) {
         setSelectedMapelPondok(availableMapel[0].nama);
       }
@@ -160,15 +171,20 @@ export default function InputNilaiPondokPage() {
 
   /* ---- Filter siswa berdasarkan kelas + SORT NAMA A→Z ---- */
   const filtered = useMemo(() => {
-    let result = data;
-    if (selectedKelas) {
-      result = result.filter((r) => r.kelas === selectedKelas);
-    }
-    // ⬇️ Penambahan: urutkan berdasarkan nama_siswa (A-Z), case-insensitive, locale Indonesia
-    return [...result].sort((a, b) =>
-      String(a?.nama_siswa || "").localeCompare(String(b?.nama_siswa || ""), "id", { sensitivity: "base" })
-    );
-  }, [data, selectedKelas]);
+  // kalau belum ada kelas terpilih, jangan tampilkan apa pun dulu
+  if (!selectedKelas) return [];
+
+  const result = data.filter((r) => r.kelas === selectedKelas);
+
+  // urutkan berdasarkan nama_siswa (A-Z)
+  return [...result].sort((a, b) =>
+    String(a?.nama_siswa || "").localeCompare(
+      String(b?.nama_siswa || ""),
+      "id",
+      { sensitivity: "base" }
+    )
+  );
+}, [data, selectedKelas]);
 
   const visible = useMemo(() => filtered.slice(0, 50), [filtered]);
 
@@ -184,7 +200,9 @@ export default function InputNilaiPondokPage() {
   }, [dirty]);
 
   const confirmLoseChanges = () =>
-    window.confirm("Perubahan belum disimpan. Yakin ingin melanjutkan? Perubahan akan hilang.");
+    window.confirm(
+      "Perubahan belum disimpan. Yakin ingin melanjutkan? Perubahan akan hilang."
+    );
 
   const handleChangeMapel = (val) => {
     if (dirty && !confirmLoseChanges()) return;
@@ -206,15 +224,21 @@ export default function InputNilaiPondokPage() {
     const XLSX = XLSXRef.current;
 
     const header = ["nisn", "nama_siswa", "kelas", "nilai"];
-    const rows = (selectedKelas ? data.filter((d) => d.kelas === selectedKelas) : data).map((r) => [
-      r.nisn, r.nama_siswa, r.kelas, ""
-    ]);
+    const rows = (selectedKelas
+      ? data.filter((d) => d.kelas === selectedKelas)
+      : data
+    ).map((r) => [r.nisn, r.nama_siswa, r.kelas, ""]);
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
     ws["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 10 }, { wch: 8 }];
     XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, `template-nilai-pondok-${selectedMapelPondok || "mapel"}-${selectedKelas || "ALL"}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `template-nilai-pondok-${selectedMapelPondok || "mapel"}-${
+        selectedKelas || "ALL"
+      }.xlsx`
+    );
   };
 
   const downloadCurrentXLSX = async () => {
@@ -222,7 +246,10 @@ export default function InputNilaiPondokPage() {
     const XLSX = XLSXRef.current;
 
     const header = ["nisn", "nama_siswa", "kelas", `nilai_${selectedMapelPondok}`];
-    const rows = (selectedKelas ? data.filter((d) => d.kelas === selectedKelas) : data).map((r) => [
+    const rows = (selectedKelas
+      ? data.filter((d) => d.kelas === selectedKelas)
+      : data
+    ).map((r) => [
       String(r.nisn ?? ""),
       r.nama_siswa ?? "",
       r.kelas ?? "",
@@ -233,7 +260,12 @@ export default function InputNilaiPondokPage() {
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
     ws["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 10 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws, "Data");
-    XLSX.writeFile(wb, `data-nilai-pondok-${selectedMapelPondok || "mapel"}-${selectedKelas || "ALL"}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `data-nilai-pondok-${selectedMapelPondok || "mapel"}-${
+        selectedKelas || "ALL"
+      }.xlsx`
+    );
   };
 
   /* ========= Upload Excel (preview) ========= */
@@ -265,8 +297,8 @@ export default function InputNilaiPondokPage() {
       return -1;
     };
 
-    const idxNisn  = idxByName(["nisn"]);
-    const idxNama  = idxByName(["nama", "namasiswa", "nama_siswa"]);
+    const idxNisn = idxByName(["nisn"]);
+    const idxNama = idxByName(["nama", "namasiswa", "nama_siswa"]);
     const idxKelas = idxByName(["kelas"]);
 
     const mNorm = norm(selectedMapelPondok);
@@ -274,7 +306,9 @@ export default function InputNilaiPondokPage() {
 
     let idxNilai = idxByName(kandidatNilai);
     if (idxNilai === -1) {
-      idxNilai = headerNorm.findIndex((hn) => hn.startsWith("nilai_") && hn.includes(mNorm));
+      idxNilai = headerNorm.findIndex(
+        (hn) => hn.startsWith("nilai_") && hn.includes(mNorm)
+      );
     }
 
     if (idxNisn === -1) {
@@ -282,7 +316,9 @@ export default function InputNilaiPondokPage() {
       return;
     }
 
-    const existingNisn = new Set(data.map((d) => String(d.nisn || "").trim()).filter(Boolean));
+    const existingNisn = new Set(
+      data.map((d) => String(d.nisn || "").trim()).filter(Boolean)
+    );
 
     let rowsCount = 0;
     let updated = 0;
@@ -345,7 +381,11 @@ export default function InputNilaiPondokPage() {
         const numNilai = safeNilai === "" ? null : Number(safeNilai);
 
         // pastikan doc ada & tidak tabrak field lain
-        await setDoc(ref, { nisn: row.nisn, nama_siswa: row.nama_siswa, kelas: row.kelas }, { merge: true });
+        await setDoc(
+          ref,
+          { nisn: row.nisn, nama_siswa: row.nama_siswa, kelas: row.kelas },
+          { merge: true }
+        );
 
         // nested + legacy (kompatibel dengan versi lama)
         const updates = {
@@ -366,13 +406,25 @@ export default function InputNilaiPondokPage() {
     }
   };
 
+  const emptyMessage =
+    availableMapel.length === 0
+      ? selectedKelas
+        ? `Tidak ada mapel pondok untuk kelas ${selectedKelas}`
+        : "Tidak ada data mapel pondok"
+      : "Tidak ada siswa yang sesuai dengan filter";
+
   /* =============== UI =============== */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-6 md:p-10">
-      <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-10">
+     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-0">
+    <div className="bg-white w-full min-h-screen px-3 py-4 md:px-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-black">📗 Input Nilai — Mapel Pondok</h1>
-          <button onClick={() => guardedNavigate("/input-nilai")} className="text-black hover:underline text-sm">
+          <h1 className="text-2xl md:text-3xl font-extrabold text-black">
+            📗 Input Nilai — Mapel Pondok
+          </h1>
+          <button
+            onClick={() => guardedNavigate("/input-nilai")}
+            className="text-black hover:underline text-sm"
+          >
             ← Kembali
           </button>
         </div>
@@ -407,7 +459,8 @@ export default function InputNilaiPondokPage() {
 
           {importInfo.rows > 0 && (
             <span className="ml-auto text-sm text-slate-600">
-              Preview: {importInfo.rows} baris • Update: {importInfo.updated} • Di-skip (NISN baru): {importInfo.skippedNew}
+              Preview: {importInfo.rows} baris • Update: {importInfo.updated} •
+              Di-skip (NISN baru): {importInfo.skippedNew}
             </span>
           )}
         </div>
@@ -415,107 +468,219 @@ export default function InputNilaiPondokPage() {
         {loading ? (
           <p className="text-center text-black">⏳ Memuat data...</p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-300/50 shadow-md">
-            <table className="w-full text-sm overflow-hidden rounded-2xl border border-gray-300/50">
-              <thead className="sticky top-0 z-10">
-                {/* Baris 1 */}
-                <tr className="bg-gradient-to-r from-emerald-200 to-teal-200 text-black text-xs">
-                  <th rowSpan={2} className="p-1 w-2 border border-gray-300/50 text-center">No</th>
-                  <th rowSpan={2} className="p-1 w-4 border border-gray-300/50 text-center">NISN</th>
-                  <th rowSpan={2} className="p-1 w-8 border border-gray-300/50 text-center">Nama</th>
-                  <th className="p-2 w-20 border border-gray-300/50 text-center">Filter Kelas</th>
-                  <th className="p-2 border border-gray-300/50 text-center">INPUT NILAI MAPEL PONDOK</th>
-                </tr>
-                {/* Baris 2 */}
-                <tr className="bg-gradient-to-r from-emerald-100 to-teal-100 text-black text-xs">
-                  {/* Kelas */}
-                  <th className="p-2 w-20 border border-gray-300/50 text-center">
-                    <select
-                      value={selectedKelas}
-                      onChange={(e) => handleChangeKelas(e.target.value)}
-                      className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-emerald-400"
-                    >
-                      <option value="">Semua</option>
-                      {daftarKelas.map((k) => <option key={k} value={k}>{k}</option>)}
-                    </select>
-                  </th>
+          <>
+            {/* Filter atas untuk kelas & mapel (mobile & desktop) */}
+            <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 md:items-end">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+  Filter Kelas
+</label>
+<select
+  value={selectedKelas}
+  onChange={(e) => handleChangeKelas(e.target.value)}
+  className="w-full rounded-md bg-white text-black px-3 py-2 text-xs md:text-sm border border-gray-300 focus:ring-2 focus:ring-emerald-400"
+>
+  {daftarKelas.map((k) => (
+    <option key={k} value={k}>
+      {k}
+    </option>
+  ))}
+</select>
+              </div>
 
-                  {/* Dropdown Mapel Pondok - Terfilter berdasarkan kelas */}
-                  <th className="p-2 w-28 border border-gray-300/50 text-center">
-                    <select
-                      value={selectedMapelPondok}
-                      onChange={(e) => handleChangeMapel(e.target.value)}
-                      className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-emerald-400"
-                    >
-                      {availableMapel.length === 0 ? (
-                        <option value="">
-                          {selectedKelas ? `(tidak ada mapel untuk kelas ${selectedKelas})` : "(tidak ada mapel)"}
-                        </option>
-                      ) : (
-                        availableMapel.map((m) => (
-                          <option key={m.id} value={m.nama}>
-                            {m.arab ? `${m.nama} (${m.arab})` : m.nama}
-                            {m.kelas && !selectedKelas ? ` - Kelas ${m.kelas}` : ""}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </th>
-                </tr>
-              </thead>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Mapel Pondok
+                </label>
+                <select
+                  value={selectedMapelPondok}
+                  onChange={(e) => handleChangeMapel(e.target.value)}
+                  className="w-full rounded-md bg-white text-black px-3 py-2 text-xs md:text-sm border border-gray-300 focus:ring-2 focus:ring-emerald-400"
+                >
+                  {availableMapel.length === 0 ? (
+                    <option value="">
+                      {selectedKelas
+                        ? `(tidak ada mapel untuk kelas ${selectedKelas})`
+                        : "(tidak ada mapel)"}
+                    </option>
+                  ) : (
+                    availableMapel.map((m) => (
+                      <option key={m.id} value={m.nama}>
+                        {m.arab ? `${m.nama} (${m.arab})` : m.nama}
+                        {m.kelas && !selectedKelas ? ` - Kelas ${m.kelas}` : ""}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            </div>
 
-              <tbody>
+            {/* Tabel mobile: hanya Nama & Nilai */}
+            <div className="md:hidden">
+              <div className="rounded-2xl border border-gray-300/50 shadow-md overflow-hidden">
                 {visible.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-500">
-                      {availableMapel.length === 0 
-                        ? (selectedKelas 
-                          ? `Tidak ada mapel pondok untuk kelas ${selectedKelas}`
-                          : "Tidak ada data mapel pondok"
-                        )
-                        : "Tidak ada siswa yang sesuai dengan filter"
-                      }
-                    </td>
-                  </tr>
+                  <div className="p-6 text-center text-gray-500 text-sm">
+                    {emptyMessage}
+                  </div>
                 ) : (
-                  visible.map((row, idx) => (
-                    <tr
-                      key={row.nisn || row.id || idx}
-                      className={`transition hover:bg-emerald-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                    >
-                      <td className="p-1 text-center border border-gray-300/50 text-black">{idx + 1}</td>
-                      <td className="p-1 text-center border border-gray-300/50 text-black truncate" title={row.nisn}>{row.nisn}</td>
-                      <td className="p-1 border border-gray-300/50 text-black truncate" title={row.nama_siswa}>{row.nama_siswa}</td>
-                      <td className="p-2 text-center border border-gray-300/50 text-black">{row.kelas}</td>
-
-                      {/* Nilai */}
-                      <td className="p-2 w-20 text-center border border-gray-300/50 align-top">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={1}
-                          value={row.nilaiPondok ?? ""}
-                          onChange={(e) => {
-                            const v = clampScore(e.target.value);
-                            setDirty(true);
-                            setData((prev) => prev.map((r) => (r.nisn === row.nisn ? { ...r, nilaiPondok: v } : r)));
-                          }}
-                          className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-emerald-400 min-h-[60px]"
-                          placeholder="0"
-                        />
-                      </td>
-                    </tr>
-                  ))
+                  <table className="w-full text-sm table-fixed">
+                    <thead className="bg-gradient-to-r from-emerald-200 to-teal-200 text-black text-xs">
+                      <tr>
+                        <th className="p-2 border border-gray-300/50 text-left">
+                          Nama
+                        </th>
+                        <th className="p-2 border border-gray-300/50 text-center w-28">
+                          {/* w-28: kolom nilai lebih lebar di mobile */}
+                          Nilai
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visible.map((row, idx) => (
+                        <tr
+                          key={row.nisn || row.id || idx}
+                          className={`transition hover:bg-emerald-50 ${
+                            idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
+                        >
+                          <td className="p-2 border border-gray-300/50 text-black">
+  <div
+    className="text-xs font-semibold truncate"
+    title={row.nama_siswa}
+  >
+    {idx + 1}. {row.nama_siswa}
+  </div>
+</td>
+                          <td className="p-2 border border-gray-300/50 text-center align-top w-28">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={row.nilaiPondok ?? ""}
+                              onChange={(e) => {
+                                const v = clampScore(e.target.value);
+                                setDirty(true);
+                                setData((prev) =>
+                                  prev.map((r) =>
+                                    r.nisn === row.nisn
+                                      ? { ...r, nilaiPondok: v }
+                                      : r
+                                  )
+                                );
+                              }}
+                              className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-emerald-400"
+                              placeholder="0"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+
+            {/* Tabel desktop: lengkap */}
+            <div className="hidden md:block">
+              <div className="overflow-x-auto rounded-2xl border border-gray-300/50 shadow-md">
+                 <table className="w-full text-sm table-fixed overflow-hidden rounded-2xl border border-gray-300/50">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-gradient-to-r from-emerald-200 to-teal-200 text-black text-xs">
+                     <th className="p-1 w-[40px] border border-gray-300/50 text-center">
+                        No
+                      </th>
+                      <th className="p-1 w-[100px] border border-gray-300/50 text-center">
+                        NISN
+                      </th>
+                      <th className="p-1 w-[220px] border border-gray-300/50 text-center">
+                        Nama
+                      </th>
+                      <th className="p-1 w-[80px] border border-gray-300/50 text-center">
+                        Kelas
+                      </th>
+                      <th className="p-2 w-[140px] border border-gray-300/50 text-center">
+                        INPUT NILAI MAPEL PONDOK
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {visible.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="p-8 text-center text-gray-500"
+                        >
+                          {emptyMessage}
+                        </td>
+                      </tr>
+                    ) : (
+                      visible.map((row, idx) => (
+                        <tr
+                          key={row.nisn || row.id || idx}
+                          className={`transition hover:bg-emerald-50 ${
+                            idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
+                        >
+                          <td className="p-1 text-center border border-gray-300/50 text-black">
+                            {idx + 1}
+                          </td>
+                          <td
+                            className="p-1 text-center border border-gray-300/50 text-black truncate"
+                            title={row.nisn}
+                          >
+                            {row.nisn}
+                          </td>
+                          <td
+                            className="p-1 border border-gray-300/50 text-black truncate"
+                            title={row.nama_siswa}
+                          >
+                            {row.nama_siswa}
+                          </td>
+                          <td className="p-2 text-center border border-gray-300/50 text-black">
+                            {row.kelas}
+                          </td>
+
+                          {/* Nilai */}
+                          <td className="p-2 w-32 text-center border border-gray-300/50 align-top">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={row.nilaiPondok ?? ""}
+                              onChange={(e) => {
+                                const v = clampScore(e.target.value);
+                                setDirty(true);
+                                setData((prev) =>
+                                  prev.map((r) =>
+                                    r.nisn === row.nisn
+                                      ? { ...r, nilaiPondok: v }
+                                      : r
+                                  )
+                                );
+                              }}
+                              className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-emerald-400 min-h-[60px]"
+                              placeholder="0"
+                            />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Footer actions */}
         <div className="mt-6 flex items-center justify-between">
-          <Link href="/input-nilai/umum" className="text-sm text-black hover:underline">
+          <Link
+            href="/input-nilai/umum"
+            className="text-sm text-black hover:underline"
+          >
             → Pindah ke Mapel Umum
           </Link>
           <button

@@ -21,7 +21,7 @@ export default function PrintPondokKelas() {
   }, [kelas]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-black">
+    <div className="min-h-screen bg-white text-black">
       <style>{`
         @page { size: A4; margin: 12mm; }
         @media print {
@@ -55,7 +55,7 @@ export default function PrintPondokKelas() {
               <iframe
                 title={`rapor-pondok-${s.nisn}`}
                 src={`/rapor-siswa/${encodeURIComponent(s.nisn)}/cetak-pondok?embed=1`}
-                className="w-[210mm] h-[297mm] bg-white shadow"
+                className="w-[210mm] h-[297mm] bg-white"
               />
             </div>
           ))}

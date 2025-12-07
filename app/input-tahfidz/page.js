@@ -17,24 +17,33 @@ export default function InputTahfidzPage() {
     try {
       if (withSpinner) setLoading(true);
 
-      // siswa
       const siswaSnap = await getDocs(collection(db, "siswa"));
       const siswa = siswaSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      // kelas unik
-      setDaftarKelas([...new Set(siswa.map((s) => s.kelas).filter(Boolean))]);
+      const kelasUnik = [
+        ...new Set(
+          siswa
+            .map((s) => (s.kelas || "").toString().trim())
+            .filter(Boolean)
+        ),
+      ].sort((a, b) =>
+        a.localeCompare(b, "id", {
+          sensitivity: "base",
+          numeric: true,
+        })
+      );
 
-      // rapor
+      setDaftarKelas(kelasUnik);
+      setSelectedKelas((prev) => prev || kelasUnik[0] || "");
+
       const rapSnap = await getDocs(collection(db, "raport"));
       const rap = Object.fromEntries(rapSnap.docs.map((d) => [d.id, d.data()]));
 
-      // gabung
       const merged = siswa.map((s) => {
         const r = rap[s.nisn] || {};
         const t = r.tahfidz || {};
         return {
           ...s,
-          // nilai default (string agar input number mudah dikosongkan)
           tahfidz_total_juz: t.total_juz ?? "",
           tahfidz_target_lembar: t.target_lembar ?? "",
           tahfidz_tercapai_lembar: t.tercapai_lembar ?? "",
@@ -43,12 +52,15 @@ export default function InputTahfidzPage() {
         };
       });
 
-      // ✅ Urutkan nama siswa A→Z (tanpa mengubah logika lain)
       merged.sort((a, b) =>
-        String(a.nama_siswa || "").localeCompare(String(b.nama_siswa || ""), "id", {
-          sensitivity: "base",
-          numeric: false,
-        })
+        String(a.nama_siswa || "").localeCompare(
+          String(b.nama_siswa || ""),
+          "id",
+          {
+            sensitivity: "base",
+            numeric: false,
+          }
+        )
       );
 
       setData(merged);
@@ -64,11 +76,11 @@ export default function InputTahfidzPage() {
     fetchData(true);
   }, []);
 
-  // Filter per kelas & batasi 30 data
-  const filtered = data.filter((r) => (selectedKelas ? r.kelas === selectedKelas : true));
+  const filtered = data.filter((r) =>
+    selectedKelas ? r.kelas === selectedKelas : false
+  );
   const visible = filtered.slice(0, 50);
 
-  // Simpan semua baris yang sedang terfilter
   const handleSaveAll = async () => {
     try {
       setSaving(true);
@@ -80,7 +92,6 @@ export default function InputTahfidzPage() {
             nisn: row.nisn,
             nama_siswa: row.nama_siswa,
             kelas: row.kelas,
-            // simpan dalam sub-objek tahfidz agar rapi
             tahfidz: {
               total_juz: Number(row.tahfidz_total_juz || 0),
               target_lembar: Number(row.tahfidz_target_lembar || 0),
@@ -110,178 +121,453 @@ export default function InputTahfidzPage() {
             📖 Input Penilaian Hafalan Al-Qur’an
           </h1>
           <div className="flex items-center gap-3">
-            <Link href="/input-nilai" className="text-black hover:underline text-sm">
+            <Link
+              href="/input-nilai"
+              className="text-black hover:underline text-sm"
+            >
               ← Kembali ke Input Nilai
             </Link>
           </div>
         </div>
 
-        {/* Konten */}
         {loading ? (
           <p className="text-center text-black">⏳ Memuat data...</p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-300/50 shadow-md">
-            <table className="w-full text-sm overflow-hidden rounded-2xl border border-gray-300/50">
-              <thead className="sticky top-0 z-10">
-                {/* Baris 1 */}
-                <tr className="bg-gradient-to-r from-sky-200 to-indigo-200 text-black text-xs">
-                  <th rowSpan={2} className="p-1 w-2 border border-gray-300/50 text-center">No</th>
-                  <th rowSpan={2} className="p-1 w-4 border border-gray-300/50 text-center">NISN</th>
-                  <th rowSpan={2} className="p-1 w-8 border border-gray-300/50 text-center">Nama</th>
-                  <th className="p-2 w-24 border border-gray-300/50 text-center">Daftar Kelas</th>
-                  <th colSpan={5} className="p-2 border border-gray-300/50 text-center">
-                    Penilaian Hafalan Al-Qur’an
-                  </th>
-                </tr>
+          <>
+            {/* DESKTOP / TABLET */}
+            <div className="hidden md:block">
+              <div className="overflow-x-auto rounded-2xl border border-gray-300/50 shadow-md">
+                <table className="w-full text-sm table-fixed overflow-hidden rounded-2xl border border-gray-300/50">
+                  {/* Atur lebar kolom di sini */}
+                  <colgroup>
+                    <col className="w-[60px]" />   {/* No */}
+                    <col className="w-[130px]" />  {/* NISN */}
+                    <col className="w-[260px]" />  {/* Nama */}
+                    <col className="w-[120px]" />  {/* Kelas */}
+                    <col className="w-[90px]" />   {/* Total Juz */}
+                    <col className="w-[110px]" />  {/* Target */}
+                    <col className="w-[110px]" />  {/* Tercapai */}
+                    <col className="w-[430px]" />  {/* Keterangan (PALING BESAR) */}
+                    <col className="w-[80px]" />   {/* Nilai */}
+                  </colgroup>
 
-                {/* Baris 2 */}
-                <tr className="bg-gradient-to-r from-sky-100 to-indigo-100 text-black text-xs">
-                  {/* Filter kelas */}
-                  <th className="p-2 w-24 border border-gray-300/50 text-center">
-                    <select
-                      value={selectedKelas}
-                      onChange={(e) => setSelectedKelas(e.target.value)}
-                      className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-sky-400"
+                  <thead className="sticky top-0 z-10">
+                    {/* Baris 1 */}
+                    <tr className="bg-gradient-to-r from-sky-200 to-indigo-200 text-black text-xs">
+                      <th
+                        rowSpan={2}
+                        className="p-1 border border-gray-300/50 text-center"
+                      >
+                        No
+                      </th>
+                      <th
+                        rowSpan={2}
+                        className="p-1 border border-gray-300/50 text-center"
+                      >
+                        NISN
+                      </th>
+                      <th
+                        rowSpan={2}
+                        className="p-1 border border-gray-300/50 text-center"
+                      >
+                        Nama
+                      </th>
+                      <th className="p-2 border border-gray-300/50 text-center">
+                        Daftar Kelas
+                      </th>
+                      <th
+                        colSpan={5}
+                        className="p-2 border border-gray-300/50 text-center"
+                      >
+                        Penilaian Hafalan Al-Qur’an
+                      </th>
+                    </tr>
+
+                    {/* Baris 2 */}
+                    <tr className="bg-gradient-to-r from-sky-100 to-indigo-100 text-black text-xs">
+                      <th className="p-2 border border-gray-300/50 text-center">
+                        <select
+                          value={selectedKelas}
+                          onChange={(e) => setSelectedKelas(e.target.value)}
+                          className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-sky-400"
+                        >
+                          {daftarKelas.map((k) => (
+                            <option key={k} value={k}>
+                              {k}
+                            </option>
+                          ))}
+                        </select>
+                      </th>
+
+                      <th className="p-2 border border-gray-300/50 text-center">
+                        Total Juz
+                      </th>
+                      <th className="p-2 border border-gray-300/50 text-center">
+                        Target (lembar)
+                      </th>
+                      <th className="p-2 border border-gray-300/50 text-center">
+                        Tercapai (lembar)
+                      </th>
+                      <th className="p-2 border border-gray-300/50 text-center">
+                        Keterangan
+                      </th>
+                      <th className="p-2 border border-gray-300/50 text-center">
+                        Nilai
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {visible.map((row, idx) => (
+                      <tr
+                        key={row.id}
+                        className={`transition hover:bg-sky-50 ${
+                          idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        }`}
+                      >
+                        <td className="p-1 text-center border border-gray-300/50 text-black">
+                          {idx + 1}
+                        </td>
+                        <td
+                          className="p-1 text-center border border-gray-300/50 text-black truncate"
+                          title={row.nisn}
+                        >
+                          {row.nisn}
+                        </td>
+                        <td
+                          className="p-1 border border-gray-300/50 text-black truncate"
+                          title={row.nama_siswa}
+                        >
+                          {row.nama_siswa}
+                        </td>
+
+                        <td className="p-2 text-center border border-gray-300/50 text-black">
+                          {row.kelas}
+                        </td>
+
+                        {/* Total Juz */}
+                        <td className="p-2 text-center border border-gray-300/50 align-top">
+                          <input
+                            type="number"
+                            min={0}
+                            value={row.tahfidz_total_juz ?? ""}
+                            onChange={(e) =>
+                              setData((prev) =>
+                                prev.map((r) =>
+                                  r.id === row.id
+                                    ? {
+                                        ...r,
+                                        tahfidz_total_juz: e.target.value,
+                                      }
+                                    : r
+                                )
+                              )
+                            }
+                            className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
+                            placeholder="0"
+                          />
+                        </td>
+
+                        {/* Target */}
+                        <td className="p-2 text-center border border-gray-300/50 align-top">
+                          <input
+                            type="number"
+                            min={0}
+                            value={row.tahfidz_target_lembar ?? ""}
+                            onChange={(e) =>
+                              setData((prev) =>
+                                prev.map((r) =>
+                                  r.id === row.id
+                                    ? {
+                                        ...r,
+                                        tahfidz_target_lembar: e.target.value,
+                                      }
+                                    : r
+                                )
+                              )
+                            }
+                            className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
+                            placeholder="0"
+                          />
+                        </td>
+
+                        {/* Tercapai */}
+                        <td className="p-2 text-center border border-gray-300/50 align-top">
+                          <input
+                            type="number"
+                            min={0}
+                            value={row.tahfidz_tercapai_lembar ?? ""}
+                            onChange={(e) =>
+                              setData((prev) =>
+                                prev.map((r) =>
+                                  r.id === row.id
+                                    ? {
+                                        ...r,
+                                        tahfidz_tercapai_lembar:
+                                          e.target.value,
+                                      }
+                                    : r
+                                )
+                              )
+                            }
+                            className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
+                            placeholder="0"
+                          />
+                        </td>
+
+                        {/* Keterangan – kolom besar */}
+                        <td className="p-2 border border-gray-300/50 align-top">
+                          <textarea
+                            rows={2}
+                            value={row.tahfidz_keterangan ?? ""}
+                            onChange={(e) =>
+                              setData((prev) =>
+                                prev.map((r) =>
+                                  r.id === row.id
+                                    ? {
+                                        ...r,
+                                        tahfidz_keterangan: e.target.value,
+                                      }
+                                    : r
+                                )
+                              )
+                            }
+                            className="w-full border rounded-md px-3 py-2 text-xs text-black focus:ring-2 focus:ring-indigo-400 resize-y"
+                            placeholder="Contoh: Lancar juz 2 dan setoran rutin"
+                          />
+                        </td>
+
+                        {/* Nilai */}
+                        <td className="p-2 text-center border border-gray-300/50 align-top">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={row.tahfidz_nilai ?? ""}
+                            onChange={(e) =>
+                              setData((prev) =>
+                                prev.map((r) =>
+                                  r.id === row.id
+                                    ? {
+                                        ...r,
+                                        tahfidz_nilai: e.target.value,
+                                      }
+                                    : r
+                                )
+                              )
+                            }
+                            className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
+                            placeholder="0-100"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+
+                    {visible.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={9}
+                          className="text-center p-4 text-gray-500"
+                        >
+                          Tidak ada data untuk kelas ini.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* MOBILE */}
+            <div className="block md:hidden">
+              <div className="mb-4">
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Kelas
+                </label>
+                <select
+                  value={selectedKelas}
+                  onChange={(e) => setSelectedKelas(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-black focus:outline-none focus:ring-2 focus:ring-sky-400"
+                >
+                  {daftarKelas.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {visible.length === 0 ? (
+                <p className="text-center text-xs text-gray-500">
+                  Tidak ada data untuk kelas ini.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {visible.map((row, idx) => (
+                    <div
+                      key={row.id}
+                      className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm"
                     >
-                      <option value="">Semua</option>
-                      {daftarKelas.map((k) => (
-                        <option key={k} value={k}>{k}</option>
-                      ))}
-                    </select>
-                  </th>
+                      <div className="flex items-baseline gap-1 mb-1">
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          {idx + 1}.
+                        </span>
+                        <span className="text-sm font-semibold text-slate-900">
+                          {row.nama_siswa}
+                        </span>
+                      </div>
 
-                  <th className="p-2 w-16 border border-gray-300/50 text-center">Total Juz</th>
-                  <th className="p-2 w-20 border border-gray-300/50 text-center">Target (lembar)</th>
-                  <th className="p-2 w-24 border border-gray-300/50 text-center">Tercapai (lembar)</th>
-                  <th className="p-2 w-[16rem] md:w-[18rem] lg:w-[20rem] border border-gray-300/50 text-center">
-                    Keterangan
-                  </th>
-                  <th className="p-2 w-14 border border-gray-300/50 text-center">Nilai</th>
-                </tr>
-              </thead>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2">
+                        <span className="text-[10px] text-slate-500">
+                          NISN: {row.nisn}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          Kelas: {row.kelas}
+                        </span>
+                      </div>
 
-              <tbody>
-                {visible.map((row, idx) => (
-                  <tr
-                    key={row.id}
-                    className={`transition hover:bg-sky-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                  >
-                    <td className="p-1 text-center border border-gray-300/50 text-black">{idx + 1}</td>
-                    <td className="p-1 text-center border border-gray-300/50 text-black truncate" title={row.nisn}>
-                      {row.nisn}
-                    </td>
-                    <td className="p-1 border border-gray-300/50 text-black truncate" title={row.nama_siswa}>
-                      {row.nama_siswa}
-                    </td>
+                      <div className="mb-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[11px] font-semibold text-slate-800">
+                            Total Juz, Target, Tercapai
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-[9px] text-slate-500 mb-0.5">
+                              Total
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={row.tahfidz_total_juz ?? ""}
+                              onChange={(e) =>
+                                setData((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id
+                                      ? {
+                                          ...r,
+                                          tahfidz_total_juz: e.target.value,
+                                        }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
+                              placeholder="0"
+                            />
+                          </div>
 
-                    {/* Kelas (read-only) */}
-                    <td className="p-2 text-center border border-gray-300/50 text-black">{row.kelas}</td>
+                          <div>
+                            <label className="block text-[9px] text-slate-500 mb-0.5">
+                              Target
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={row.tahfidz_target_lembar ?? ""}
+                              onChange={(e) =>
+                                setData((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id
+                                      ? {
+                                          ...r,
+                                          tahfidz_target_lembar: e.target.value,
+                                        }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
+                              placeholder="0"
+                            />
+                          </div>
 
-                    {/* Total Juz */}
-                    <td className="p-2 w-16 text-center border border-gray-300/50 align-top">
-                      <input
-                        type="number"
-                        min={0}
-                        value={row.tahfidz_total_juz ?? ""}
-                        onChange={(e) =>
-                          setData((prev) =>
-                            prev.map((r) =>
-                              r.id === row.id ? { ...r, tahfidz_total_juz: e.target.value } : r
+                          <div>
+                            <label className="block text-[9px] text-slate-500 mb-0.5">
+                              Tercapai
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={row.tahfidz_tercapai_lembar ?? ""}
+                              onChange={(e) =>
+                                setData((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id
+                                      ? {
+                                          ...r,
+                                          tahfidz_tercapai_lembar:
+                                            e.target.value,
+                                        }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <label className="block text-[11px] font-semibold text-slate-800 mb-1">
+                          Nilai
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={row.tahfidz_nilai ?? ""}
+                          onChange={(e) =>
+                            setData((prev) =>
+                              prev.map((r) =>
+                                r.id === row.id
+                                  ? {
+                                      ...r,
+                                      tahfidz_nilai: e.target.value,
+                                    }
+                                  : r
+                              )
                             )
-                          )
-                        }
-                        className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
-                        placeholder="0"
-                      />
-                    </td>
+                          }
+                          className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
+                          placeholder="0-100"
+                        />
+                      </div>
 
-                    {/* Target Lembar */}
-                    <td className="p-2 w-20 text-center border border-gray-300/50 align-top">
-                      <input
-                        type="number"
-                        min={0}
-                        value={row.tahfidz_target_lembar ?? ""}
-                        onChange={(e) =>
-                          setData((prev) =>
-                            prev.map((r) =>
-                              r.id === row.id ? { ...r, tahfidz_target_lembar: e.target.value } : r
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-800 mb-1">
+                          Keterangan
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={row.tahfidz_keterangan ?? ""}
+                          onChange={(e) =>
+                            setData((prev) =>
+                              prev.map((r) =>
+                                r.id === row.id
+                                  ? {
+                                      ...r,
+                                      tahfidz_keterangan: e.target.value,
+                                    }
+                                  : r
+                              )
                             )
-                          )
-                        }
-                        className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
-                        placeholder="0"
-                      />
-                    </td>
-
-                    {/* Tercapai Lembar */}
-                    <td className="p-2 w-24 text-center border border-gray-300/50 align-top">
-                      <input
-                        type="number"
-                        min={0}
-                        value={row.tahfidz_tercapai_lembar ?? ""}
-                        onChange={(e) =>
-                          setData((prev) =>
-                            prev.map((r) =>
-                              r.id === row.id ? { ...r, tahfidz_tercapai_lembar: e.target.value } : r
-                            )
-                          )
-                        }
-                        className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
-                        placeholder="0"
-                      />
-                    </td>
-
-                    {/* Keterangan */}
-                    <td className="p-2 border border-gray-300/50 align-top">
-                      <textarea
-                        rows={2}
-                        value={row.tahfidz_keterangan ?? ""}
-                        onChange={(e) =>
-                          setData((prev) =>
-                            prev.map((r) =>
-                              r.id === row.id ? { ...r, tahfidz_keterangan: e.target.value } : r
-                            )
-                          )
-                        }
-                        className="w-full border rounded-md px-3 py-2 text-xs text-black focus:ring-2 focus:ring-indigo-400 resize-y"
-                        placeholder="Contoh: Lancar juz 30, setoran rutin"
-                      />
-                    </td>
-
-                    {/* Nilai */}
-                    <td className="p-2 w-14 text-center border border-gray-300/50 align-top">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={row.tahfidz_nilai ?? ""}
-                        onChange={(e) =>
-                          setData((prev) =>
-                            prev.map((r) =>
-                              r.id === row.id ? { ...r, tahfidz_nilai: e.target.value } : r
-                            )
-                          )
-                        }
-                        className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
-                        placeholder="0-100"
-                      />
-                    </td>
-                  </tr>
-                ))}
-
-                {visible.length === 0 && (
-                  <tr>
-                    <td colSpan={10} className="text-center p-4 text-gray-500">
-                      Tidak ada data untuk filter ini.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                          }
+                          className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-[11px] text-black focus:ring-2 focus:ring-indigo-400"
+                          placeholder="Contoh: Lancar juz 2 dan setoran rutin"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
 
-        {/* Aksi */}
         <div className="mt-6 flex items-center justify-end">
           <button
             onClick={handleSaveAll}

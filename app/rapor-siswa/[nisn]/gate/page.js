@@ -5,15 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 /* ================== Konfigurasi ================== */
-const RELEASE_AT_ISO = "2025-10-01T08:00:00+08:00"; // 1 Okt 2025 08:00 WITA
+const RELEASE_AT_ISO = "2025-12-21T08:00:00+07:00";
 const TITLE = "Sistem Rapor Digital";
 
 /* ================== Util waktu ================== */
-const MS = { d: 86400000 };
+const MS = { d: 86400000 }; // 1 hari = 86.400.000 ms
 
 function diffParts(targetMs, nowMs) {
-  const ms = Math.max(0, targetMs - nowMs);
-  const totalSec = Math.floor(ms / 1000);
+  const ms = Math.max(0, (targetMs || 0) - (nowMs || 0));
+  const totalSec = Math.floor(ms / 1000) || 0;
   const days = Math.floor(totalSec / (24 * 3600));
   const hours = Math.floor((totalSec % (24 * 3600)) / 3600);
   const mins = Math.floor((totalSec % 3600) / 60);
@@ -23,12 +23,11 @@ function diffParts(targetMs, nowMs) {
 
 /* ================== Komponen UI ================== */
 function CircularStat({ value, max, label }) {
-  const r = 50; // radius dikembalikan ke ukuran sedang
-  const C = 2 * Math.PI * r; // circumference
+  const r = 50;
+  const C = 2 * Math.PI * r;
   const pct = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   const offset = C * (1 - pct);
-
-  const valText = String(value).padStart(2, "0");
+  const valText = Number.isFinite(value) ? String(value).padStart(2, "0") : "00";
 
   return (
     <div className="flex flex-col items-center">
@@ -72,34 +71,32 @@ export default function GatePage() {
   const { nisn } = useParams();
 
   const target = useMemo(() => new Date(RELEASE_AT_ISO).getTime(), []);
-  const [now, setNow] = useState(Date.now);
-  const left = diffParts(target, now);
-  
+  // INISIALISASI BENAR: simpan timestamp sekarang (number)
+  const [now, setNow] = useState(() => Date.now());
+
+  // recompute left setiap kali now berubah
+  const left = useMemo(() => diffParts(target, now), [target, now]);
+
+  // totalDaysAtMount: gunakan nilai tetap di mount (untuk progress hari)
   const totalDaysAtMount = useMemo(() => {
-    const d = Math.ceil((target - Date.now()) / MS.d);
-    return Math.max(1, d);
+    const raw = Math.ceil(Math.max(0, (target - Date.now())) / MS.d);
+    return Math.max(1, raw);
   }, [target]);
 
-  // Timer interval - PERBAIKAN: Pendekatan yang lebih sederhana
+  // Timer: update every second *only while countdown active*
   useEffect(() => {
-    // Jika sudah lewat waktu target, tidak perlu timer
-    if (now >= target) return;
-    
-    const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-
+    if (now >= target) return; // sudah lewat -> tidak perlu interval
+    const interval = setInterval(() => setNow(() => Date.now()), 1000);
     return () => clearInterval(interval);
-  }, []); // Empty dependency - hanya run sekali
+  }, [now, target]);
 
-  // Redirect effect
+  // Redirect effect: jalan sekali ketika waktu habis
   useEffect(() => {
     if (left.ms <= 0) {
-      const to = setTimeout(() => {
-        router.replace(`/rapor-siswa/${encodeURIComponent(nisn)}`);
-      }, 600);
-      return () => clearTimeout(to);
+      // pastikan hanya redirect sekali
+      router.replace(`/rapor-siswa/${encodeURIComponent(nisn)}`);
     }
+  // kita pantau left.ms dan nisn/router
   }, [left.ms, nisn, router]);
 
   const dateLocal = useMemo(() => {
@@ -116,7 +113,7 @@ export default function GatePage() {
         timeZone: "Asia/Makassar",
       }).format(d) + " WITA";
     } catch {
-      return "Rabu, 25 September 2025 17.07 WITA";
+      return RELEASE_AT_ISO;
     }
   }, []);
 
@@ -145,7 +142,6 @@ export default function GatePage() {
                 <p className="mt-1 text-sm text-slate-600">Jadwal rilis: {dateLocal}</p>
               </div>
 
-              {/* Conditional render of timer to prevent hydration mismatch */}
               {now !== null && (
                 <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-6 place-items-center">
                   <CircularStat value={left.days} max={totalDaysAtMount} label="HARI" />

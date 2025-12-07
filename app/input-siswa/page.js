@@ -30,7 +30,11 @@ function SectionCard({ title, children }) {
 function Modal({ open, title, children, onClose }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" aria-modal="true" role="dialog">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      aria-modal="true"
+      role="dialog"
+    >
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-lg mx-4 rounded-2xl bg-white shadow-2xl border border-slate-200">
         <div className="flex items-center justify-between px-5 py-3 border-b">
@@ -105,7 +109,12 @@ export default function InputSiswaPage() {
   /* ---- modal edit ---- */
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [editDraft, setEditDraft] = useState({ nisn: "", nama_siswa: "", nama_ar: "", kelas: "" });
+  const [editDraft, setEditDraft] = useState({
+    nisn: "",
+    nama_siswa: "",
+    nama_ar: "",
+    kelas: "",
+  });
   const [editSaving, setEditSaving] = useState(false);
 
   /* -------- Fetch siswa -------- */
@@ -119,7 +128,10 @@ export default function InputSiswaPage() {
       list.sort(
         (a, b) =>
           normalize(a.kelas).localeCompare(normalize(b.kelas), "id") ||
-          normalize(a.nama_siswa).localeCompare(normalize(b.nama_siswa), "id")
+          normalize(a.nama_siswa).localeCompare(
+            normalize(b.nama_siswa),
+            "id"
+          )
       );
       setSiswaList(list);
     } catch (e) {
@@ -128,19 +140,61 @@ export default function InputSiswaPage() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchSiswa();
   }, []);
 
+  /* -------- Hapus siswa -------- */
+  const handleDelete = async (id) => {
+    const target = siswaList.find((s) => s.id === id);
+    if (!target) return;
+
+    const ok = window.confirm(
+      `Yakin ingin menghapus data siswa:\n${target.nama_siswa} (${target.nisn})?\n\nTindakan ini tidak bisa dibatalkan.`
+    );
+    if (!ok) return;
+
+    try {
+      // Hapus dok utama siswa
+      await deleteDoc(doc(db, "siswa", String(id)));
+
+      // ==== JIKA MAU HAPUS DI SISTEM LAIN JUGA, CONTOH: ====
+      // await deleteDoc(doc(db, "raport", String(id)));
+      // await deleteDoc(doc(db, "nilai", String(id)));
+      // (sesuaikan nama koleksi dengan struktur punyamu)
+
+      await fetchSiswa();
+      alert("🗑 Data siswa berhasil dihapus.");
+    } catch (e) {
+      console.error(e);
+      alert("⚠️ Gagal menghapus data siswa.");
+    }
+  };
+
   /* -------- Derivasi daftar kelas (dataset kelas) -------- */
   const kelasSet = useMemo(() => {
-    const s = new Set(siswaList.map((x) => normalize(x.kelas)).filter(Boolean));
+    const s = new Set(
+      siswaList.map((x) => normalize(x.kelas)).filter(Boolean)
+    );
     return Array.from(s).sort((a, b) => a.localeCompare(b, "id"));
   }, [siswaList]);
 
-  /* -------- Derivasi filter + limit 50 -------- */
+   // Jika belum ada kelas terpilih, pilih otomatis kelas pertama
+  useEffect(() => {
+    if (!selectedKelas && kelasSet.length > 0) {
+      setSelectedKelas(kelasSet[0]);
+    }
+  }, [kelasSet, selectedKelas]);
+
+    /* -------- Derivasi filter + limit 50 -------- */
   const filtered = useMemo(
-    () => siswaList.filter((x) => (selectedKelas ? normalize(x.kelas) === selectedKelas : true)),
+    () =>
+      siswaList.filter((x) =>
+        !selectedKelas
+          ? false // kalau belum pilih kelas, jangan tampilkan apa-apa
+          : normalize(x.kelas) === normalize(selectedKelas)
+      ),
     [siswaList, selectedKelas]
   );
   const visible = useMemo(() => filtered.slice(0, PAGE_LIMIT), [filtered]);
@@ -168,7 +222,9 @@ export default function InputSiswaPage() {
     try {
       setSaving(true);
       // idempotent: doc id = nisn
-      await setDoc(doc(collection(db, "siswa"), payload.nisn), payload, { merge: true });
+      await setDoc(doc(collection(db, "siswa"), payload.nisn), payload, {
+        merge: true,
+      });
       setFormData({ nisn: "", nama_siswa: "", nama_ar: "", kelas: "" });
       await fetchSiswa();
       alert("✅ Data siswa disimpan");
@@ -251,7 +307,13 @@ export default function InputSiswaPage() {
   /* -------- Download Data saat ini -------- */
   const downloadDataNow = () => {
     const header = [["No", "NISN", "Nama", "Nama Arab", "Kelas"]];
-    const body = siswaList.map((s, i) => [i + 1, s.nisn || "", s.nama_siswa || "", s.nama_ar || "", s.kelas || ""]);
+    const body = siswaList.map((s, i) => [
+      i + 1,
+      s.nisn || "",
+      s.nama_siswa || "",
+      s.nama_ar || "",
+      s.kelas || "",
+    ]);
     const ws = XLSX.utils.aoa_to_sheet([...header, ...body]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Data Siswa");
@@ -304,15 +366,21 @@ export default function InputSiswaPage() {
       <div className="max-w-6xl mx-auto space-y-8">
         {/* ======= HEADER ======= */}
         <div className="text-center">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">👨‍🎓 Input & Upload Data Siswa</h1>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">
+            👨‍🎓 Input & Upload Data Siswa
+          </h1>
           <p className="text-slate-600 mt-1">
-            Tambah manual, unggah Excel, dan filter per kelas. Tampilan dibatasi maksimal 50 baris.
+            Tambah manual, unggah Excel, dan filter per kelas. Tampilan
+            dibatasi maksimal 50 baris.
           </p>
         </div>
 
         {/* ======= FORM TAMBAH (kelas dari dataset) ======= */}
         <SectionCard title="➕ Tambah Siswa (Form)">
-          <form onSubmit={handleSubmitForm} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <form
+            onSubmit={handleSubmitForm}
+            className="grid grid-cols-1 md:grid-cols-5 gap-4"
+          >
             <input
               type="text"
               name="nisn"
@@ -334,7 +402,7 @@ export default function InputSiswaPage() {
             <input
               type="text"
               name="nama_ar"
-              placeholder="Nama Arab (opsional)"
+              placeholder="Nama Arab (wajib)"
               value={formData.nama_ar}
               onChange={handleChangeForm}
               className="border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
@@ -344,7 +412,12 @@ export default function InputSiswaPage() {
             <div className="md:col-span-1">
               <SelectKelas
                 value={formData.kelas}
-                onChange={(v) => setFormData((p) => ({ ...p, kelas: v }))}
+                onChange={(v) =>
+                  setFormData((p) => ({
+                    ...p,
+                    kelas: v,
+                  }))
+                }
                 options={kelasSet}
               />
             </div>
@@ -362,7 +435,12 @@ export default function InputSiswaPage() {
         {/* ======= UPLOAD & TEMPLATE ======= */}
         <SectionCard title="📂 Upload Excel & Template">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
-            <input type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="text-slate-900" />
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              className="text-slate-900"
+            />
             <button
               onClick={saveExcelToFirestore}
               disabled={!rowsPreview.length}
@@ -392,7 +470,10 @@ export default function InputSiswaPage() {
                 <thead className="bg-slate-100">
                   <tr className="text-slate-700">
                     {Object.keys(rowsPreview[0]).map((k) => (
-                      <th key={k} className="px-3 py-2 border border-slate-200 text-left">
+                      <th
+                        key={k}
+                        className="px-3 py-2 border border-slate-200 text-left"
+                      >
                         {k}
                       </th>
                     ))}
@@ -402,7 +483,10 @@ export default function InputSiswaPage() {
                   {rowsPreview.map((row, i) => (
                     <tr key={i} className="hover:bg-slate-50">
                       {Object.values(row).map((v, j) => (
-                        <td key={j} className="px-3 py-2 border border-slate-200">
+                        <td
+                          key={j}
+                          className="px-3 py-2 border border-slate-200"
+                        >
                           {String(v)}
                         </td>
                       ))}
@@ -411,7 +495,8 @@ export default function InputSiswaPage() {
                 </tbody>
               </table>
               <p className="text-xs text-slate-500 px-2 py-2">
-                Menampilkan {rowsPreview.length} baris dari file Excel. Pastikan header: <b>No, NISN, Nama, Nama Arab, Kelas</b>.
+                Menampilkan {rowsPreview.length} baris dari file Excel.
+                Pastikan header: <b>No, NISN, Nama, Nama Arab, Kelas</b>.
               </p>
             </div>
           )}
@@ -422,22 +507,28 @@ export default function InputSiswaPage() {
           {/* Filter kelas */}
           <div className="mb-3 flex flex-col md:flex-row gap-3 items-start md:items-center">
             <div>
-              <label className="block text-sm text-slate-700 mb-1">Filter Kelas</label>
+              <label className="block text-sm text-slate-700 mb-1">
+                Filter Kelas
+              </label>
               <select
-                value={selectedKelas}
-                onChange={(e) => setSelectedKelas(e.target.value)}
-                className="border border-slate-300 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
-              >
-                <option value="">Semua</option>
-                {kelasSet.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
+  value={selectedKelas}
+  onChange={(e) => setSelectedKelas(e.target.value)}
+  className="border border-slate-300 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+>
+  {kelasSet.length === 0 ? (
+    <option value="">Belum ada kelas</option>
+  ) : (
+    kelasSet.map((k) => (
+      <option key={k} value={k}>
+        {k}
+      </option>
+    ))
+  )}
+</select>
             </div>
             <div className="text-sm text-slate-600">
-              Menampilkan <b>{visible.length}</b> dari <b>{filtered.length}</b> data (maks 50).
+              Menampilkan <b>{visible.length}</b> dari{" "}
+              <b>{filtered.length}</b> data (maks 50).
             </div>
           </div>
 
@@ -445,36 +536,60 @@ export default function InputSiswaPage() {
             <table className="w-full border-collapse text-sm">
               <thead className="bg-slate-100">
                 <tr className="text-slate-700">
-                  <th className="px-3 py-2 border border-slate-200 text-center w-14">No</th>
+                  <th className="px-3 py-2 border border-slate-200 text-center w-14">
+                    No
+                  </th>
                   <th className="px-3 py-2 border border-slate-200">NISN</th>
                   <th className="px-3 py-2 border border-slate-200">Nama</th>
-                  <th className="px-3 py-2 border border-slate-200 text-right" dir="rtl">
+                  <th
+                    className="px-3 py-2 border border-slate-200 text-right"
+                    dir="rtl"
+                  >
                     الاسم العربي
                   </th>
-                  <th className="px-3 py-2 border border-slate-200 text-center w-24">Kelas</th>
-                  <th className="px-3 py-2 border border-slate-200 text-center w-40">Aksi</th>
+                  <th className="px-3 py-2 border border-slate-200 text-center w-24">
+                    Kelas
+                  </th>
+                  <th className="px-3 py-2 border border-slate-200 text-center w-40">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                    <td
+                      colSpan={6}
+                      className="px-4 py-6 text-center text-slate-500"
+                    >
                       Memuat…
                     </td>
                   </tr>
                 ) : visible.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                    <td
+                      colSpan={6}
+                      className="px-4 py-6 text-center text-slate-500"
+                    >
                       Tidak ada data untuk filter ini.
                     </td>
                   </tr>
                 ) : (
                   visible.map((s, i) => (
                     <tr key={s.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 border border-slate-200 text-center">{i + 1}</td>
-                      <td className="px-3 py-2 border border-slate-200">{s.nisn}</td>
-                      <td className="px-3 py-2 border border-slate-200">{s.nama_siswa}</td>
-                      <td className="px-3 py-2 border border-slate-200 text-right" dir="rtl">
+                      <td className="px-3 py-2 border border-slate-200 text-center">
+                        {i + 1}
+                      </td>
+                      <td className="px-3 py-2 border border-slate-200">
+                        {s.nisn}
+                      </td>
+                      <td className="px-3 py-2 border border-slate-200">
+                        {s.nama_siswa}
+                      </td>
+                      <td
+                        className="px-3 py-2 border border-slate-200 text-right"
+                        dir="rtl"
+                      >
                         {s.nama_ar || ""}
                       </td>
                       <td className="px-3 py-2 border border-slate-200 text-center">
@@ -511,7 +626,9 @@ export default function InputSiswaPage() {
       <Modal open={modalOpen} title="✏️ Edit Siswa" onClose={closeEdit}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="col-span-2">
-            <label className="block text-sm text-slate-700 mb-1">NISN (ID Dokumen)</label>
+            <label className="block text-sm text-slate-700 mb-1">
+              NISN (ID Dokumen)
+            </label>
             <input
               type="text"
               value={editDraft.nisn}
@@ -524,16 +641,28 @@ export default function InputSiswaPage() {
             <input
               type="text"
               value={editDraft.nama_siswa}
-              onChange={(e) => setEditDraft((p) => ({ ...p, nama_siswa: e.target.value }))}
+              onChange={(e) =>
+                setEditDraft((p) => ({
+                  ...p,
+                  nama_siswa: e.target.value,
+                }))
+              }
               className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
             />
           </div>
           <div>
-            <label className="block text-sm text-slate-700 mb-1">Nama Arab</label>
+            <label className="block text-sm text-slate-700 mb-1">
+              Nama Arab
+            </label>
             <input
               type="text"
               value={editDraft.nama_ar}
-              onChange={(e) => setEditDraft((p) => ({ ...p, nama_ar: e.target.value }))}
+              onChange={(e) =>
+                setEditDraft((p) => ({
+                  ...p,
+                  nama_ar: e.target.value,
+                }))
+              }
               className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
             />
           </div>
@@ -541,7 +670,12 @@ export default function InputSiswaPage() {
             <label className="block text-sm text-slate-700 mb-1">Kelas </label>
             <SelectKelas
               value={editDraft.kelas}
-              onChange={(v) => setEditDraft((p) => ({ ...p, kelas: v }))}
+              onChange={(v) =>
+                setEditDraft((p) => ({
+                  ...p,
+                  kelas: v,
+                }))
+              }
               options={kelasSet}
             />
           </div>

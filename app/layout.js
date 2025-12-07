@@ -20,9 +20,12 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id">
-      <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
-         <AuthGateClient />
+    <html lang="id" suppressHydrationWarning>
+      <body
+        className={`${geist.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
+      >
+        <AuthGateClient />
         {children}
       </body>
     </html>

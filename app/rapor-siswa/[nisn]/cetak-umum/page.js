@@ -90,11 +90,12 @@ export default function CetakRaporUmum() {
   useEffect(() => {
     const loadBio = async () => {
       try {
-        const ref = doc(db, "bio_sekolah", "default");
-        const s = await getDoc(ref);
-        if (s.exists()) setBio(s.data());
-      } catch (e) {
-        console.error("Gagal ambil bio sekolah", e);
+        const snap = await getDoc(doc(db, "bio_sekolah", "default"));
+        if (snap.exists()) {
+          setBio(snap.data());
+        }
+      } catch (err) {
+        console.error("Gagal ambil bio sekolah", err);
       }
     };
     loadBio();
@@ -223,221 +224,300 @@ export default function CetakRaporUmum() {
     fase: data.fase || "",
   };
 
+  // ⬇️ URL tanda tangan kepala sekolah (ambil dari beberapa kemungkinan field)
+  const ttdKepalaSekolahUrl =
+    bio?.kepala_sekolah_ttd || bio?.kepala_sekolah_foto || "";
+
+  // ⬇️ Waktu pembagian rapor (ambil dari bio_sekolah)
+  const waktuPembagianRaport =
+    bio?.waktuPembagianRaport || "Jadwal belum ditentukan";
+
+  // Komponen kecil untuk kop (dipakai di setiap halaman)
+  const HeaderIdentitas = () => (
+    <div
+      className="leading-snug kop-print-only"
+      style={{ fontSize: "11pt" }}
+    >
+      <div className="grid grid-cols-[1.3fr_1fr] gap-x-20">
+        {/* Kolom kiri */}
+        <div className="space-y-1">
+          <div className="flex">
+            <span className="w-36">Nama</span>
+            <span className="w-4 text-center">:</span>
+            <span className="font-bold">{biodata.nama}</span>
+          </div>
+          <div className="flex">
+            <span className="w-36">NIS/NISN</span>
+            <span className="w-4 text-center">:</span>
+            <span>- / {biodata.nisn}</span>
+          </div>
+          <div className="flex">
+            <span className="w-36">Nama Sekolah</span>
+            <span className="w-4 text-center">:</span>
+            <span className="whitespace-nowrap">{bio?.nama_sekolah || "—"}</span>
+          </div>
+          <div className="flex">
+            <span className="w-36">Alamat</span>
+            <span className="w-4 text-center">:</span>
+            <span className="whitespace-nowrap">{bio?.alamat || "—"}</span>
+          </div>
+        </div>
+
+        {/* Kolom kanan */}
+        <div className="space-y-1">
+          <div className="flex">
+            <span className="w-32">Kelas</span>
+            <span className="w-4 text-center">:</span>
+            <span className="font-bold">{biodata.kelas}</span>
+          </div>
+          <div className="flex">
+            <span className="w-32">Semester</span>
+            <span className="w-4 text-center">:</span>
+            {/* khusus umum: ambil dari bio.semesterUmum */}
+            <span>{bio?.semesterUmum || biodata.semester}</span>
+          </div>
+          <div className="flex">
+            <span className="w-32">Fase</span>
+            <span className="w-4 text-center">:</span>
+            <span>{bio?.fase || "—"}</span>
+          </div>
+          <div className="flex">
+            <span className="w-32">Tahun Pelajaran</span>
+            <span className="w-4 text-center">:</span>
+            {/* khusus umum: ambil dari bio.tahunPelajaranUmum */}
+            <span>{bio?.tahunPelajaranUmum || biodata.tahun}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Garis pemisah penuh */}
+      <div className="border-b border-black mt-2.5" />
+    </div>
+  );
+
   return (
     <div
-      className="min-h-screen bg-white text-black"
+      className="min-h-screen bg-white text-black pb-10"
       style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
     >
-      {/* A4 wrapper */}
-      <div className="mx-auto w-[210mm] min-h-[297mm] p-4 print:p-6">
-        {/* ===== HEADER IDENTITAS ===== */}
-        <div className="leading-snug" style={{ fontSize: "11pt" }}>
-          <div className="grid grid-cols-[1.3fr_1fr] gap-x-20">
-            {/* Kolom kiri */}
-            <div className="space-y-1">
-              <div className="flex">
-                <span className="w-36">Nama</span>
-                <span className="w-4 text-center">:</span>
-                <span className="font-bold">{biodata.nama}</span>
-              </div>
-              <div className="flex">
-                <span className="w-36">NIS/NISN</span>
-                <span className="w-4 text-center">:</span>
-                <span>- / {biodata.nisn}</span>
-              </div>
-              <div className="flex">
-                <span className="w-36">Nama Sekolah</span>
-                <span className="w-4 text-center">:</span>
-                <span className="whitespace-nowrap">{bio?.nama_sekolah || "—"}</span>
-              </div>
-              <div className="flex">
-                <span className="w-36">Alamat</span>
-                <span className="w-4 text-center">:</span>
-                <span className="whitespace-nowrap">{bio?.alamat || "—"}</span>
-              </div>
-            </div>
+      {/* Wrapper responsif di layar, fix 210mm di print */}
+      <div className="mx-auto w-full max-w-[210mm] px-2 print:w-[210mm] print:px-0">
+        {/* ========= HALAMAN 1 ========= */}
+        <div className="p-4 print:p-6 print:min-h-[297mm]">
+          {/* Kop halaman 1 */}
+          <HeaderIdentitas />
 
-            {/* Kolom kanan */}
-            <div className="space-y-1">
-              <div className="flex">
-                <span className="w-32">Kelas</span>
-                <span className="w-4 text-center">:</span>
-                <span className="font-bold">{biodata.kelas}</span>
-              </div>
-              <div className="flex">
-                <span className="w-32">Fase</span>
-                <span className="w-4 text-center">:</span>
-                <span>{bio?.fase || "—"}</span>
-              </div>
-              <div className="flex">
-                <span className="w-32">Semester</span>
-                <span className="w-4 text-center">:</span>
-                <span>{biodata.semester}</span>
-              </div>
-              <div className="flex">
-                <span className="w-32">Tahun Pelajaran</span>
-                <span className="w-4 text-center">:</span>
-                <span>{biodata.tahun}</span>
-              </div>
+          {/* Judul */}
+          <div className="judul-rapor text-center mt-8 mb-6 leading-none">
+            <div className="font-semibold tracking-wide">
+              LAPORAN HASIL BELAJAR
+            </div>
+            {/* <div className="font-semibold tracking-wide">
+              SUMATIF AKHIR SEMESTER
+            </div> */}
+          </div>
+
+          {/* Tabel nilai umum */}
+          <div className="mt-2 overflow-x-auto print:overflow-visible">
+            <table className="w-full border border-black border-collapse">
+              <thead className="bg-purple-100 text-[11px] font-bold">
+                <tr>
+                  <th className="w-[32px] border border-black p-0 h-10 text-center align-middle">
+                    No
+                  </th>
+                  <th className="w-[140] border border-black p-0 h-10 text-center align-middle">
+                    Mata Pelajaran
+                  </th>
+                  <th className="w-[60] border border-black p-0 h-10 text-center align-middle">
+                    Nilai Akhir
+                  </th>
+                  <th className="w-[370px] border border-black p-0 h-10 text-center align-middle">
+                    Capaian Kompetensi
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="text-[10px]">
+                {rowsUmum.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="border border-black p-0 text-center align-middle"
+                    >
+                      Tidak ada data (dataset kosong atau belum ada nilai/capaian).
+                    </td>
+                  </tr>
+                ) : (
+                  rowsUmum.map((r, i) => (
+                    <tr key={r.mapel}>
+                      <td className="border border-black p-0.5 text-center align-middle">
+                        {i + 1}
+                      </td>
+                      <td className="border border-black p-0.5 text-left align-middle">
+                        {fmt(r.mapel)}
+                      </td>
+                      <td className="border border-black p-0.5 text-center align-middle font-semibold">
+                        {r.nilai}
+                      </td>
+                      <td className="border border-black p-0.5 text-left align-middle whitespace-pre-wrap break-words">
+                        {r.capaian}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Ekstrakurikuler */}
+          <div className="mt-3 overflow-x-auto print:overflow-visible">
+            <table className="w-full border border-black border-collapse text-[11px]">
+              <thead className="bg-purple-100 font-bold">
+                <tr>
+                  <th className="w-[32px] border border-black text-center">No</th>
+                  <th className="w-[170] border border-black text-center">
+                    Kegiatan Ekstrakurikuler
+                  </th>
+                  <th className="w-[100px] border border-black text-center">
+                    Predikat
+                  </th>
+                  <th className="w-[300px] border border-black text-center">
+                    Keterangan
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2].map((n) => (
+                  <tr key={n}>
+                    <td className="border border-black text-center p-1">{n}</td>
+                    <td className="border border-black p-1">&nbsp;</td>
+                    <td className="border border-black text-center p-1">&nbsp;</td>
+                    <td className="border border-black p-1">&nbsp;</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Absensi */}
+          <div className="mt-3 grid grid-cols-1 gap-4">
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="w-full border border-black border-collapse mt-4">
+                <thead className="bg-purple-100 text-[11px] font-bold">
+                  <tr>
+                    <th className="w-[100px] border border-black text-center align-middle">
+                      Keterangan
+                    </th>
+                    <th className="w-[80px] border border-black text-center align-middle">
+                      Jumlah Absensi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="text-[10px]">
+                  <tr>
+                    <td className="border border-black text-left p-1 whitespace-nowrap">
+                      Sakit
+                    </td>
+                    <td className="border border-black text-center p-1">
+                      {data.sakit || 0} hari
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black text-left p-1 whitespace-nowrap">
+                      Izin
+                    </td>
+                    <td className="border border-black text-center p-1">
+                      {data.izin || 0} hari
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black text-left p-1 whitespace-nowrap">
+                      Tanpa Keterangan
+                    </td>
+                    <td className="border border-black text-center p-1">
+                      {data.alpha || 0} hari
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* Garis pemisah penuh */}
-          <div className="border-b border-black mt-2.5" />
-        </div>
-
-        {/* ===== JUDUL ===== */}
-       <div className="judul-rapor text-center mt-8 mb-6 leading-none">
-  <div className="font-semibold tracking-wide">
-    LAPORAN HASIL BELAJAR
-  </div>
-  <div className="font-semibold tracking-wide">
-    SUMATIF TENGAH SEMESTER
-  </div>
-</div>
-      
-        {/* ===== TABEL NILAI UMUM (DINAMIS) ===== */}
-        <table className="w-full border border-black border-collapse">
-          <thead className="bg-purple-100 text-[11px] font-bold">
-            <tr>
-              <th className="w-[32px] border border-black p-0 h-10 text-center align-middle">No</th>
-              <th className="w-[140] border border-black p-0 h-10 text-center align-middle">Mata Pelajaran</th>
-              <th className="w-[60] border border-black p-0 h-10 text-center align-middle">Nilai Akhir</th>
-              <th className="w-[370px] border border-black p-0 h-10 text-center align-middle">Capaian Kompetensi</th>
-            </tr>
-          </thead>
-          <tbody className="text-[10px]">
-            {rowsUmum.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="border border-black p-0 text-center align-middle">
-                  Tidak ada data (dataset kosong atau belum ada nilai/capaian).
-                </td>
-              </tr>
-            ) : (
-              rowsUmum.map((r, i) => (
-                <tr key={r.mapel}>
-                  <td className="border border-black p-0.5 text-center align-middle">{i + 1}</td>
-                  <td className="border border-black p-0.5 text-left align-middle">{fmt(r.mapel)}</td>
-                  <td className="border border-black p-0.5 text-center align-middle font-semibold">
-                    {r.nilai}
-                  </td>
-                  <td className="border border-black p-0.5 text-left align-middle whitespace-pre-wrap break-words">
-                    {r.capaian}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-
-        {/* ===== EKSTRAKURIKULER (placeholder) ===== */}
-        {/* <div className="mt-3">
-          <table className="w-full border border-black border-collapse text-[11px]">
-            <thead className="bg-purple-100 font-bold">
-              <tr>
-                <th className="w-[32px] border border-black text-center">No</th>
-                <th className="w-[170] border border-black text-center">Kegiatan Ekstrakurikuler</th>
-                <th className="w-[100px] border border-black text-center">Predikat</th>
-                <th className="w-[300px] border border-black text-center">Keterangan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[1, 2].map((n) => (
-                <tr key={n}>
-                  <td className="border border-black text-center p-1">{n}</td>
-                  <td className="border border-black p-1">&nbsp;</td>
-                  <td className="border border-black text-center p-1">&nbsp;</td>
-                  <td className="border border-black p-1">&nbsp;</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div> */}
-
-        {/* ===== ABSENSI ===== */}
-        <div className="mt-3 grid grid-cols-2 gap-4">
-          <table className="w-full border border-black border-collapse mt-4">
-            <thead className="bg-purple-100 text-[11px] font-bold">
-              <tr>
-                <th className="w-[100px] border border-black text-center align-middle">Keterangan</th>
-                <th className="w-[80px] border border-black text-center align-middle">Jumlah Absensi</th>
-              </tr>
-            </thead>
-            <tbody className="text-[10px]">
-              <tr>
-                <td className="border border-black text-left p-1 whitespace-nowrap">Sakit</td>
-                <td className="border border-black text-center p-1">{data.sakit || 0} hari</td>
-              </tr>
-              <tr>
-                <td className="border border-black text-left p-1 whitespace-nowrap">Izin</td>
-                <td className="border border-black text-center p-1">{data.izin || 0} hari</td>
-              </tr>
-              <tr>
-                <td className="border border-black text-left p-1 whitespace-nowrap">Tanpa Keterangan</td>
-                <td className="border border-black text-center p-1">{data.alpha || 0} hari</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* ===== CATATAN WALI KELAS ===== */}
-        <div className="mt-4">
-          <div className="font-bold mb-1 text-[11px]">Catatan Wali Kelas</div>
-          <div className="border border-black p-2 text-[11px] leading-tight whitespace-pre-wrap break-words text-center">
-            {data.catatan_wali && String(data.catatan_wali).trim() !== ""
-              ? data.catatan_wali
-              : "— (Belum ada catatan wali kelas)"}
+          {/* Catatan wali kelas (akhir halaman 1) */}
+          <div className="mt-4">
+            <div className="font-bold mb-1 text-[11px]">Catatan Wali Kelas</div>
+            <div className="border border-black p-2 text-[11px] leading-tight whitespace-pre-wrap break-words text-center">
+              {data.catatan_wali && String(data.catatan_wali).trim() !== ""
+                ? data.catatan_wali
+                : "— (Belum ada catatan wali kelas)"}
+            </div>
           </div>
         </div>
 
-        {/* ===== TANDA TANGAN (halaman baru) ===== */}
-        
-          <table className="w-full text-[11px] leading-tight">
-            <tbody>
-              {/* Baris 1: Orang Tua/Wali | Wali Kelas */}
-              <tr>
-                <td className="w-1/2 align-top p-2">
-                  <div>Mengetahui</div>
-                  <div>Orang Tua/Wali,</div>
-                  <div className="mt-16">......................</div>
-                </td>
+        {/* ========= HALAMAN 2 (TANDA TANGAN) ========= */}
+        <div className="p-4 print:p-6 page-break-before print:min-h-[297mm]">
+          <HeaderIdentitas />
 
-                <td className="w-1/2 align-top p-2 text-right">
-                  <div>Bagek Nyaka, 1 Oktober 2025</div>
-                  <div>Wali Kelas,</div>
-                  <div className="mt-16 inline-block text-left">
-                    <div className="font-bold underline">
-                      {formatNamaGelar(wali?.nama_wali)}
+          <div className="mt-8" />
+
+          <div className="overflow-x-auto print:overflow-visible">
+            <table className="w-full text-[11px] leading-tight">
+              <tbody>
+                {/* Baris 1: Orang Tua/Wali | Wali Kelas */}
+                <tr>
+                  <td className="w-1/2 align-top p-2">
+                    <div>Mengetahui</div>
+                    <div>Orang Tua/Wali,</div>
+                    <div className="mt-16">......................</div>
+                  </td>
+
+                  <td className="w-1/2 align-top p-2 text-right">
+                    <div>{waktuPembagianRaport}</div>
+                    <div>Wali Kelas,</div>
+                    <div className="mt-16 inline-block text-left">
+                      <div className="font-bold underline">
+                        {formatNamaGelar(wali?.nama_wali)}
+                      </div>
+                      <div>NIP.</div>
                     </div>
-                    <div>NIP.</div>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                </tr>
 
-              {/* Baris 2: Kepala Sekolah */}
-              <tr>
-                <td colSpan={2} className="p-2 text-center align-top">
-                  <div>Mengetahui</div>
-                  <div>Kepala Sekolah</div>
-                  <div className="mt-16 inline-block text-center">
-                    <div className="font-bold underline">
-                      {formatNamaGelar(bio?.kepala_sekolah)}
+                <tr>
+                  <td colSpan={2} className="p-2 text-center align-top">
+                    <div>Mengetahui</div>
+                    <div>Kepala Sekolah</div>
+
+                    {/* area tanda tangan */}
+                    <div className="mt-3 inline-block text-center">
+                      {ttdKepalaSekolahUrl && (
+                        <div className="mb-0.5 flex justify-center">
+                          <img
+                            src={ttdKepalaSekolahUrl}
+                            alt="Tanda tangan Kepala Sekolah"
+                            className="h-16 w-40 object-contain"
+                          />
+                        </div>
+                      )}
+
+                      <div className="font-bold underline">
+                        {formatNamaGelar(bio?.kepala_sekolah)}
+                      </div>
+                      <div className="text-left">NIP.</div>
                     </div>
-                    <div className="text-left">NIP.</div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-      
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-        {/* Tombol Print (hide saat print) */}
-        <div className="mt-3 print:hidden">
+        {/* Tombol Download (hide saat print) */}
+        <div className="mt-3 px-4 print:hidden flex justify-center">
           <button
             onClick={() => window.print()}
             className="bg-black text-white px-3 py-1.5 rounded text-[11px]"
           >
-            Print
+            Download PDF
           </button>
         </div>
       </div>

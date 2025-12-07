@@ -54,7 +54,6 @@ function normalizeToNumber(v) {
     return isNaN(n) ? NaN : n;
   }
   if (typeof v === "object") {
-    // pola umum: { nilai: 80 } atau { value: "80" }
     if (v.nilai != null) return normalizeToNumber(v.nilai);
     if (v.value != null) return normalizeToNumber(v.value);
   }
@@ -64,7 +63,18 @@ function normalizeToNumber(v) {
 /** Terbilang Indonesia sederhana untuk 0..100 */
 function terbilangID(n) {
   const angka = [
-    "Nol","Satu","Dua","Tiga","Empat","Lima","Enam","Tujuh","Delapan","Sembilan","Sepuluh","Sebelas"
+    "Nol",
+    "Satu",
+    "Dua",
+    "Tiga",
+    "Empat",
+    "Lima",
+    "Enam",
+    "Tujuh",
+    "Delapan",
+    "Sembilan",
+    "Sepuluh",
+    "Sebelas",
   ];
   if (isNaN(n)) return "";
   if (n < 0) return "";
@@ -92,8 +102,8 @@ function toArabicDigits(input) {
     "7": "٧",
     "8": "٨",
     "9": "٩",
-    "A": "أ",
-    "B": "ب"
+    A: "أ",
+    B: "ب",
   };
 
   return String(input).replace(/[0-9AB]/g, (ch) => map[ch] || ch);
@@ -102,14 +112,33 @@ function toArabicDigits(input) {
 /** Terbilang Arab sederhana 0..100 */
 function terbilangAR(n) {
   if (isNaN(n) || n < 0 || n > 100) return "";
-  const upTo10 = ["صفر","واحد","اثنان","ثلاثة","أربعة","خمسة","ستة","سبعة","ثمانية","تسعة","عشرة"];
+  const upTo10 = [
+    "صفر",
+    "واحد",
+    "اثنان",
+    "ثلاثة",
+    "أربعة",
+    "خمسة",
+    "ستة",
+    "سبعة",
+    "ثمانية",
+    "تسعة",
+    "عشرة",
+  ];
   if (n <= 10) return upTo10[n];
   if (n === 11) return "أحد عشر";
   if (n === 12) return "اثنا عشر";
   if (n > 12 && n < 20) return upTo10[n - 10] + " عشر";
   const tensMap = {
-    20:"عشرون",30:"ثلاثون",40:"أربعون",50:"خمسون",
-    60:"ستون",70:"سبعون",80:"ثمانون",90:"تسعون",100:"مائة"
+    20: "عشرون",
+    30: "ثلاثون",
+    40: "أربعون",
+    50: "خمسون",
+    60: "ستون",
+    70: "سبعون",
+    80: "ثمانون",
+    90: "تسعون",
+    100: "مائة",
   };
   if (n % 10 === 0) return tensMap[n] || "";
   if (n < 100) {
@@ -138,34 +167,38 @@ export default function CetakRaporPondok() {
   const [loading, setLoading] = useState(true);
   const [namaArab, setNamaArab] = useState("");
 
-  // Tambahan: Bio sekolah & Wali Kelas
+  // Bio sekolah & Wali Kelas
   const [bio, setBio] = useState(null);
   const [wali, setWali] = useState(null);
 
   /* ===================== Fetching ===================== */
 
+  // data siswa (nama arab)
   useEffect(() => {
-  const run = async () => {
-    if (!nisnParam) return;
-    try {
-      const s = await getDoc(doc(db, "siswa", String(nisnParam)));
-      if (s.exists()) {
-        const d = s.data() || {};
-        setNamaArab((d.nama_ar || "").toString().trim());
+    const run = async () => {
+      if (!nisnParam) return;
+      try {
+        const s = await getDoc(doc(db, "siswa", String(nisnParam)));
+        if (s.exists()) {
+          const d = s.data() || {};
+          setNamaArab((d.nama_ar || "").toString().trim());
+        }
+      } catch (e) {
+        console.error("Gagal ambil siswa/{nisn}:", e);
       }
-    } catch (e) {
-      console.error("Gagal ambil siswa/{nisn}:", e);
-    }
-  };
-  run();
-}, [nisnParam]);
+    };
+    run();
+  }, [nisnParam]);
 
-  // Ambil rapor by NISN (koleksi "raport", field nisn == params)
+  // rapor by nisn
   useEffect(() => {
     const run = async () => {
       try {
         if (!nisnParam) return;
-        const q = query(collection(db, "raport"), where("nisn", "==", nisnParam));
+        const q = query(
+          collection(db, "raport"),
+          where("nisn", "==", nisnParam)
+        );
         const snap = await getDocs(q);
         if (!snap.empty) setRapor(snap.docs[0].data());
       } finally {
@@ -175,13 +208,18 @@ export default function CetakRaporPondok() {
     run();
   }, [nisnParam]);
 
-  // Ambil dataset mapel pondok (pakai orderBy jika ada createdAt)
+  // dataset mapel pondok
   useEffect(() => {
     const run = async () => {
       try {
         let snap;
         try {
-          snap = await getDocs(query(collection(db, "dataset_mapel_pondok"), orderBy("createdAt", "asc")));
+          snap = await getDocs(
+            query(
+              collection(db, "dataset_mapel_pondok"),
+              orderBy("createdAt", "asc")
+            )
+          );
         } catch {
           snap = await getDocs(collection(db, "dataset_mapel_pondok"));
         }
@@ -197,7 +235,7 @@ export default function CetakRaporPondok() {
     run();
   }, []);
 
-  // Bio sekolah
+  // bio sekolah
   useEffect(() => {
     const loadBio = async () => {
       try {
@@ -210,12 +248,15 @@ export default function CetakRaporPondok() {
     loadBio();
   }, []);
 
-  // Wali kelas
+  // wali kelas
   useEffect(() => {
     const run = async () => {
       try {
         if (!rapor?.kelas) return;
-        const qW = query(collection(db, "wali_kelas"), where("kelas", "==", rapor.kelas));
+        const qW = query(
+          collection(db, "wali_kelas"),
+          where("kelas", "==", rapor.kelas)
+        );
         const s = await getDocs(qW);
         if (!s.empty) setWali(s.docs[0].data());
       } catch (e) {
@@ -231,18 +272,26 @@ export default function CetakRaporPondok() {
     if (!rapor) return { biodata: {}, rowsPondok: [] };
 
     const allKeys = Object.keys(rapor || {});
-    const isUmum = (k) => MAPEL_UMUM.some((u) => u.toLowerCase() === String(k).toLowerCase());
+    const isUmum = (k) =>
+      MAPEL_UMUM.some(
+        (u) => u.toLowerCase() === String(k).toLowerCase()
+      );
     const nilaiKeys = allKeys.filter(
       (k) => !FIX_KEYS.includes(k) && !String(k).startsWith("capaian_")
     );
 
-    // ——— konsisten dgn page "lihat rapor": hanya mapel yg ADA di dataset pondok, urut sesuai dataset
-    const namaPondokSet = new Set(datasetPondok.map((d) => String(d.nama || "").toLowerCase()));
+    const namaPondokSet = new Set(
+      datasetPondok.map((d) => String(d.nama || "").toLowerCase())
+    );
     const idxPondok = new Map();
-    datasetPondok.forEach((d, i) => idxPondok.set(String(d.nama || "").toLowerCase(), i));
+    datasetPondok.forEach((d, i) =>
+      idxPondok.set(String(d.nama || "").toLowerCase(), i)
+    );
 
     const rows = nilaiKeys
-      .filter((k) => !isUmum(k) && namaPondokSet.has(String(k).toLowerCase()))
+      .filter(
+        (k) => !isUmum(k) && namaPondokSet.has(String(k).toLowerCase())
+      )
       .map((k) => {
         const nilaiNum = normalizeToNumber(rapor[k]);
         return { mapel: k, nilai: nilaiNum };
@@ -268,21 +317,25 @@ export default function CetakRaporPondok() {
   }, [rapor, datasetPondok]);
 
   if (loading) return <p className="p-4 text-black">⏳ Memuat...</p>;
-  if (!rapor) return <p className="p-4 text-red-600">❌ Data tidak ditemukan</p>;
+  if (!rapor)
+    return <p className="p-4 text-red-600">❌ Data tidak ditemukan</p>;
 
-  // Map nama → arab (untuk kolom label Arab)
   const arabMap = new Map(
     datasetPondok.map((d) => [String(d.nama).toLowerCase(), d.arab || ""])
   );
-  const getArab = (nama) => arabMap.get(String(nama).toLowerCase()) || "";
+  const getArab = (nama) =>
+    arabMap.get(String(nama).toLowerCase()) || "";
 
-  // Ringkasan
-  const total = rowsPondok.reduce((s, r) => s + (Number(r.nilai) || 0), 0);
+  const total = rowsPondok.reduce(
+    (s, r) => s + (Number(r.nilai) || 0),
+    0
+  );
   const rata = rowsPondok.length ? total / rowsPondok.length : 0;
 
-  const fmt = (s) => (s && s.includes("_") ? s.replace(/_/g, " ") : s || "");
+  const fmt = (s) =>
+    s && s.includes("_") ? s.replace(/_/g, " ") : s || "";
 
-  // ===== DATA HAFALAN (fallback ke tahfidz) =====
+  // ===== DATA HAFALAN =====
   const hafalan = rapor.hafalan || rapor.tahfidz || {};
   const H_totalJuz = Number(hafalan.total_juz ?? 0);
   const H_target = Number(hafalan.target_lembar ?? 0);
@@ -290,14 +343,44 @@ export default function CetakRaporPondok() {
   const H_ket = (hafalan.keterangan ?? "").toString().trim();
   const H_nilai = Number(hafalan.nilai ?? 0);
 
+  // Semester & Tahun (Umum + Arab)
+  const semesterUmum = bio?.semesterUmum || biodata.semester;
+  const tahunUmum = bio?.tahunPelajaranUmum || biodata.tahun;
+  const semesterArab = bio?.semesterArab || "الفصل الأوّل";
+  const tahunArab =
+    bio?.tahunPelajaranArab || toArabicDigits(tahunUmum || "");
+
+  const ttdKepalaSekolahUrl = bio?.kepala_sekolah_ttd || "";
+  const kopRaporUrl = bio?.kopRaporUrl || "/image/kop.jpg";
+  const waktuPembagianRaport =
+    bio?.waktuPembagianRaport || "Bagek Nyaka, 1 Oktober 2025";
+
+  /* ===================== Handler Download PDF ===================== */
+
+  const handleDownloadPDF = () => {
+    if (typeof window !== "undefined") {
+      window.print(); // user pilih "Save as PDF" di dialog print
+    }
+  };
+
   /* ===================== Render ===================== */
+
   return (
-    <div className="min-h-screen bg-white text-black" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
-      {/* F4 wrapper: gunakan max-h agar tidak memicu halaman kosong */}
-      <div className="mx-auto w-[210mm] max-h-[330mm] p-4 print:p-6">
+    <div
+      className="min-h-screen bg-white text-black pb-10 print:bg-white print:p-0"
+      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+    >
+      {/* Wrapper konten:
+          - di layar: max-w-900 dan center
+          - di print: full width (max-w-none) */}
+       <div className="w-full max-w-[900px] mx-auto p-4 pb-8 print:max-w-none print:p-0">
         {/* KOP */}
         <div className="text-center mb-0">
-          <img src="/image/kop.jpg" alt="Kop Sekolah" className="mx-auto w-full h-auto" />
+          <img
+            src={kopRaporUrl}
+            alt="Kop Sekolah"
+            className="mx-auto w-full h-auto"
+          />
         </div>
 
         {/* JUDUL */}
@@ -306,330 +389,527 @@ export default function CetakRaporPondok() {
         </h1>
 
         {/* IDENTITAS */}
-        <table className="w-full border border-black border-collapse text-[11px] leading-tight mb-2 mt-2">
-  <tbody>
-    {/* NAMA */}
-    <tr>
-      <td className="border border-black w-1/4">Nama</td>
-      <td className="border border-black w-1/4 font-bold">{biodata.nama}</td>
+        <table className="w-full border border-black border-collapse text-[10px] leading-[1.1] mb-1 mt-1">
+          <tbody>
+            {/* NAMA */}
+            <tr>
+              <td className="border border-black w-1/4 px-1 py-[1px]">
+                Nama
+              </td>
+              <td className="border border-black w-1/4 font-bold px-1 py-[1px]">
+                {biodata.nama}
+              </td>
+              <td
+                className="border border-black w-1/4 font-bold text-right px-1 py-[1px]"
+                dir="rtl"
+                lang="ar"
+              >
+                {namaArab && namaArab !== "" ? namaArab : "—"}
+              </td>
+              <td
+                className="border border-black w-1/4 font-bold text-right px-1 py-[1px]"
+                dir="rtl"
+                lang="ar"
+              >
+                اسم الطالب
+              </td>
+            </tr>
 
-      {/* NILAI ARAB (kolom 3) */}
-      <td className="border border-black w-1/4 font-bold text-right p-0" dir="rtl" lang="ar">
-        {namaArab && namaArab !== "" ? namaArab : "—"}
-      </td>
-      {/* LABEL ARAB (kolom 4) */}
-      <td className="border border-black w-1/4 font-bold text-right p-0" dir="rtl" lang="ar">
-        اسم الطالب
-      </td>
-    </tr>
+            {/* NISN */}
+            <tr>
+              <td className="border border-black px-1 py-[1px]">
+                NIS/NISN
+              </td>
+              <td className="border border-black px-1 py-[1px]">
+                {biodata.nisn}
+              </td>
+              <td
+                className="border border-black text-right px-1 py-[1px]"
+                dir="rtl"
+                lang="ar"
+              >
+                {toArabicDigits(biodata.nisn)}
+              </td>
+              <td
+                className="border border-black text-right px-1 py-[1px]"
+                dir="rtl"
+                lang="ar"
+              >
+                رقم الطالب
+              </td>
+            </tr>
 
-    {/* NIS/NISN */}
-    <tr>
-      <td className="border border-black">NIS/NISN</td>
-      <td className="border border-black">{biodata.nisn}</td>
+            {/* KELAS / SEMESTER */}
+            <tr>
+              <td className="border border-black px-1 py-[1px]">
+                Kelas/Semester
+              </td>
+              <td className="border border-black px-1 py-[1px]">
+                {biodata.kelas}/{semesterUmum}
+              </td>
+              <td
+                className="border border-black text-right px-1 py-[1px]"
+                dir="rtl"
+                lang="ar"
+              >
+                {toArabicDigits(biodata.kelas)}/{semesterArab}
+              </td>
+              <td
+                className="border border-black text-right px-1 py-[1px]"
+                dir="rtl"
+                lang="ar"
+              >
+                الصف
+              </td>
+            </tr>
 
-      {/* NILAI ARAB */}
-      <td className="border border-black text-right p-0" dir="rtl" lang="ar">
-        {toArabicDigits(biodata.nisn)}
-      </td>
-      {/* LABEL ARAB */}
-      <td className="border border-black text-right p-0" dir="rtl" lang="ar">
-        رقم الطالب
-      </td>
-    </tr>
+            {/* TAHUN PELAJARAN */}
+            <tr>
+              <td className="border border-black px-1 py-[1px]">
+                Tahun Pelajaran
+              </td>
+              <td className="border border-black px-1 py-[1px]">
+                {tahunUmum}
+              </td>
+              <td
+                className="border border-black text-right px-1 py-[1px]"
+                dir="rtl"
+                lang="ar"
+              >
+                {tahunArab}
+              </td>
+              <td
+                className="border border-black text-right px-1 py-[1px]"
+                dir="rtl"
+                lang="ar"
+              >
+                العام الدراسي
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-    {/* KELAS/SEMESTER */}
-    <tr>
-      <td className="border border-black">Kelas/Semester</td>
-      <td className="border border-black">{biodata.kelas}/Ganjil</td>
+        {/* TABEL NILAI PONDOK */}
+        <table className="w-full border border-black border-collapse text-[9px] leading-[1.1]">
+          <thead className="bg-emerald-100 text-[10px] font-bold">
+            <tr>
+              {/* Indonesia */}
+              <th className="w-[28px] border border-black text-center px-1 py-[1px]">
+                No
+              </th>
+              <th className="w-[210px] border border-black text-center px-1 py-[1px]">
+                Mata Pelajaran
+              </th>
+              <th className="w-[55px] border border-black text-center px-1 py-[1px]">
+                Angka
+              </th>
+              <th className="w-[200px] border border-black text-center px-1 py-[1px]">
+                Huruf
+              </th>
 
-      {/* NILAI ARAB */}
-      <td className="border border-black text-right p-0" dir="rtl" lang="ar">
-        {toArabicDigits(biodata.kelas)}/الفصل الأوّل
-      </td>
-      {/* LABEL ARAB */}
-      <td className="border border-black text-right p-0" dir="rtl" lang="ar">
-        الصف
-      </td>
-    </tr>
-
-    {/* TAHUN PELAJARAN */}
-    <tr>
-      <td className="border border-black">Tahun Pelajaran</td>
-      <td className="border border-black">2025/2026</td>
-
-      {/* NILAI ARAB */}
-      <td className="border border-black text-right p-0" dir="rtl" lang="ar">
-        ٢٠٢٥/٢٠٢٦
-      </td>
-      {/* LABEL ARAB */}
-      <td className="border border-black text-right p-0" dir="rtl" lang="ar">
-        العام الدراسي
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-
-
-        {/* DUA TABEL: Indonesia & Arab (dinamis dari dataset pondok) */}
-        <div className="grid grid-cols-2 gap-[2px]">
-          {/* INDONESIA */}
-          <table className="w-full border border-black border-collapse">
-            <thead className="bg-emerald-100 text-[11px] font-bold">
+              {/* Arab */}
+              <th
+                className="w-[200px] border border-black text-center px-1 py-[1px]"
+                dir="rtl"
+              >
+                كتابة
+              </th>
+              <th
+                className="w-[55px] border border-black text-center px-1 py-[1px]"
+                dir="rtl"
+              >
+                الدرجة
+              </th>
+              <th
+                className="w-[210px] border border-black text-center px-1 py-[1px]"
+                dir="rtl"
+              >
+                المادة الدراسية
+              </th>
+              <th
+                className="w-[28px] border border-black text-center px-1 py-[1px]"
+                dir="rtl"
+              >
+                رقم
+              </th>
+            </tr>
+          </thead>
+          <tbody className="text-[9px]">
+            {rowsPondok.length === 0 ? (
               <tr>
-                <th className="w-[28px] border border-black text-center">No</th>
-                <th className="w-[210px] border border-black text-center">Mata Pelajaran</th>
-                <th className="w-[55px] border border-black text-center">Angka</th>
-                <th className="w-[200px] border border-black text-center">Huruf</th>
+                <td
+                  colSpan={8}
+                  className="border border-black text-center px-1 py-[1px]"
+                >
+                  Tidak ada data.
+                </td>
               </tr>
-            </thead>
-            <tbody className="text-[10px]">
-              {rowsPondok.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="border border-black text-center">Tidak ada data.</td>
-                </tr>
-              ) : (
-                rowsPondok.map((r, i) => {
-                  const n = Number(r.nilai);
-                  return (
-                    <tr key={r.mapel}>
-                      <td className="border border-black text-center">{i + 1}</td>
-                      <td className="border border-black">{fmt(r.mapel)}</td>
-                      <td className="border border-black text-center font-semibold">{isNaN(n) ? "" : n}</td>
-                      <td className="border border-black">{isNaN(n) ? "" : terbilangID(n)}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+            ) : (
+              rowsPondok.map((r, i) => {
+                const n = Number(r.nilai);
+                return (
+                  <tr key={r.mapel}>
+                    {/* Indonesia */}
+                    <td className="border border-black text-center px-1 py-[1px]">
+                      {i + 1}
+                    </td>
+                    <td className="border border-black px-1 py-[1px]">
+                      {fmt(r.mapel)}
+                    </td>
+                    <td className="border border-black text-center font-semibold px-1 py-[1px]">
+                      {isNaN(n) ? "" : n}
+                    </td>
+                    <td className="border border-black px-1 py-[1px]">
+                      {isNaN(n) ? "" : terbilangID(n)}
+                    </td>
 
-          {/* ARAB */}
-          <table className="w-full border border-black border-collapse" dir="rtl" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
-            <thead className="bg-emerald-100 text-[11px] font-bold">
-              <tr>
-                <th className="w-[28px] border border-black text-center">رقم</th>
-                <th className="w-[210px] border border-black text-center">المادة الدراسية</th>
-                <th className="w-[55px] border border-black text-center">الدرجة</th>
-                <th className="w-[200px] border border-black text-center">كتابة</th>
-              </tr>
-            </thead>
-            <tbody className="text-[10px]">
-              {rowsPondok.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="border border-black text-center">لا توجد بيانات</td>
-                </tr>
-              ) : (
-                rowsPondok.map((r, i) => {
-                  const n = Number(r.nilai);
-                  return (
-                    <tr key={r.mapel}>
-                      <td className="border border-black text-center">{toArabicDigits(i + 1)}</td>
-                      <td className="border border-black text-right">{getArab(r.mapel) || fmt(r.mapel)}</td>
-                      <td className="border border-black text-center font-semibold">{isNaN(n) ? "" : toArabicDigits(n)}</td>
-                      <td className="border border-black text-right">{isNaN(n) ? "" : terbilangAR(n)}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                    {/* Arab */}
+                    <td
+                      className="border border-black text-right px-1 py-[1px]"
+                      dir="rtl"
+                    >
+                      {isNaN(n) ? "" : terbilangAR(n)}
+                    </td>
+                    <td
+                      className="border border-black text-center font-semibold px-1 py-[1px]"
+                      dir="rtl"
+                    >
+                      {isNaN(n) ? "" : toArabicDigits(n)}
+                    </td>
+                    <td
+                      className="border border-black text-right px-1 py-[1px]"
+                      dir="rtl"
+                    >
+                      {getArab(r.mapel) || fmt(r.mapel)}
+                    </td>
+                    <td
+                      className="border border-black text-center px-1 py-[1px]"
+                      dir="rtl"
+                    >
+                      {toArabicDigits(i + 1)}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
 
-        {/* RINGKASAN / JUMLAH NILAI */}
-        <div className="grid grid-cols-2 gap-[2px] mt-2">
-          <table className="w-full border border-black border-collapse text-[11px]">
+        {/* RINGKASAN NILAI */}
+        <div className="grid grid-cols-2 gap-[2px] mt-1">
+          <table className="w-full border border-black border-collapse text-[10px] leading-[1.1]">
             <tbody>
               <tr>
-                <td className="w-[180px] border border-black">Jumlah Nilai</td>
-                <td className="w-[80px] border border-black text-center font-semibold">{total}</td>
+                <td className="w-[180px] border border-black px-1 py-[1px]">
+                  Jumlah Nilai
+                </td>
+                <td className="w-[80px] border border-black text-center font-semibold px-1 py-[1px]">
+                  {total}
+                </td>
               </tr>
               <tr>
-                <td className="border border-black">Rata-rata Nilai</td>
-                <td className="border border-black text-center font-semibold">{rowsPondok.length ? rata.toFixed(1) : "0.0"}</td>
+                <td className="border border-black px-1 py-[1px]">
+                  Rata-rata Nilai
+                </td>
+                <td className="border border-black text-center font-semibold px-1 py-[1px]">
+                  {rowsPondok.length ? rata.toFixed(1) : "0.0"}
+                </td>
               </tr>
             </tbody>
           </table>
 
-          <table className="w-full border border-black border-collapse text-[11px]" dir="rtl">
+          <table
+            className="w-full border border-black border-collapse text-[10px] leading-[1.1]"
+            dir="rtl"
+          >
             <tbody>
               <tr>
-                <td className="w-[180px] border border-black text-right">مجموع الدرجات</td>
-                <td className="w-[80px] border border-black text-center font-semibold">{toArabicDigits(total)}</td>
+                <td className="w-[180px] border border-black text-right px-1 py-[1px]">
+                  مجموع الدرجات
+                </td>
+                <td className="w-[80px] border border-black text-center font-semibold px-1 py-[1px]">
+                  {toArabicDigits(total)}
+                </td>
               </tr>
               <tr>
-                <td className="border border-black text-right">معدل الدرجات</td>
-                <td className="border border-black text-center font-semibold">
-                  {toArabicDigits(rowsPondok.length ? String(rata.toFixed(1)) : "0.0")}
+                <td className="border border-black text-right px-1 py-[1px]">
+                  معدل الدرجات
+                </td>
+                <td className="border border-black text-center font-semibold px-1 py-[1px]">
+                  {toArabicDigits(
+                    rowsPondok.length ? String(rata.toFixed(1)) : "0.0"
+                  )}
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* ===== HAFALAN AL-QUR'AN ===== */}
-        <div className="grid grid-cols-2 gap-[2px] mt-2" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
-          {/* Indonesia */}
-          <table className="w-full border border-black border-collapse text-[11px]">
+        {/* HAFALAN */}
+        <div className="grid grid-cols-2 gap-[2px] mt-1">
+          <table className="w-full border border-black border-collapse text-[10px] leading-[1.1]">
             <thead>
               <tr>
-                <th colSpan={2} className="border border-black text-center font-bold">Penilaian Hafalan Al-Qur’an</th>
+                <th
+                  colSpan={2}
+                  className="border border-black text-center font-bold px-1 py-[1px]"
+                >
+                  Penilaian Hafalan Al-Qur’an
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="border border-black">Total Hafalan</td>
-                <td className="border border-black">{H_totalJuz} Juz</td>
+                <td className="border border-black px-1 py-[1px]">
+                  Total Hafalan
+                </td>
+                <td className="border border-black px-1 py-[1px]">
+                  {H_totalJuz} Juz
+                </td>
               </tr>
               <tr>
-                <td className="border border-black">Target Semester</td>
-                <td className="border border-black">{H_target} Lembar</td>
+                <td className="border border-black px-1 py-[1px]">
+                  Target Semester
+                </td>
+                <td className="border border-black px-1 py-[1px]">
+                  {H_target} Lembar
+                </td>
               </tr>
               <tr>
-                <td className="border border-black">Ketercapaian semester ini</td>
-                <td className="border border-black">{H_tercapai} Lembar</td>
-              </tr>              
+                <td className="border border-black px-1 py-[1px]">
+                  Ketercapaian semester ini
+                </td>
+                <td className="border border-black px-1 py-[1px]">
+                  {H_tercapai} Lembar
+                </td>
+              </tr>
               <tr>
-                <td className="border border-black">Nilai</td>
-                <td className="border border-black">{H_nilai}</td>
+                <td className="border border-black px-1 py-[1px]">
+                  Nilai
+                </td>
+                <td className="border border-black px-1 py-[1px]">
+                  {H_nilai}
+                </td>
               </tr>
             </tbody>
           </table>
 
-          {/* Arab */}
-          <table className="w-full border border-black border-collapse text-[11px]" dir="rtl">
+          <table
+            className="w-full border border-black border-collapse text-[10px] leading-[1.1]"
+            dir="rtl"
+          >
             <thead>
               <tr>
-                <th colSpan={2} className="border border-black text-center font-bold">تقييم الحفظ لِلْقُرْآن</th>
+                <th
+                  colSpan={2}
+                  className="border border-black text-center font-bold px-1 py-[1px]"
+                >
+                  تقييم الحفظ لِلْقُرْآن
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="border border-black text-right">مجموع الحفظ</td>
-                <td className="border border-black text-center">{toArabicDigits(H_totalJuz)} جزء</td>
+                <td className="border border-black text-right px-1 py-[1px]">
+                  مجموع الحفظ
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {toArabicDigits(H_totalJuz)} جزء
+                </td>
               </tr>
               <tr>
-                <td className="border border-black text-right">أهداف الفصل الدراسي</td>
-                <td className="border border-black text-center">{toArabicDigits(H_target)} أوراق</td>
+                <td className="border border-black text-right px-1 py-[1px]">
+                  أهداف الفصل الدراسي
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {toArabicDigits(H_target)} أوراق
+                </td>
               </tr>
               <tr>
-                <td className="border border-black text-right">تحقيق أهداف الفصل الدراسي</td>
-                <td className="border border-black text-center">{toArabicDigits(H_tercapai)} أوراق</td>
-              </tr>             
+                <td className="border border-black text-right px-1 py-[1px]">
+                  تحقيق أهداف الفصل الدراسي
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {toArabicDigits(H_tercapai)} أوراق
+                </td>
+              </tr>
               <tr>
-                <td className="border border-black text-right">(التقدير)</td>
-                <td className="border border-black text-center">{toArabicDigits(H_nilai)}</td>
+                <td className="border border-black text-right px-1 py-[1px]">
+                  (التقدير)
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {toArabicDigits(H_nilai)}
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
 
         {/* ABSENSI */}
-        <div className="mt-3 grid grid-cols-2 gap-[2px]">
-          <table className="w-full border border-black border-collapse text-[11px]">
+        <div className="grid grid-cols-2 gap-[2px] mt-1">
+          <table className="w-full border border-black border-collapse text-[10px] leading-[1.1]">
             <thead className="bg-emerald-100 font-bold">
               <tr>
-                <th className="border border-black text-center">Keterangan</th>
-                <th className="border border-black text-center">Jumlah</th>
+                <th className="border border-black text-center px-1 py-[1px]">
+                  Keterangan
+                </th>
+                <th className="border border-black text-center px-1 py-[1px]">
+                  Jumlah
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="border border-black">Sakit</td>
-                <td className="border border-black text-center">{rapor.sakit || 0} hari</td>
+                <td className="border border-black px-1 py-[1px]">
+                  Sakit
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {rapor.sakit || 0} hari
+                </td>
               </tr>
               <tr>
-                <td className="border border-black">Izin</td>
-                <td className="border border-black text-center">{rapor.izin || 0} hari</td>
+                <td className="border border-black px-1 py-[1px]">
+                  Izin
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {rapor.izin || 0} hari
+                </td>
               </tr>
               <tr>
-                <td className="border border-black whitespace-nowrap">Tanpa Keterangan</td>
-                <td className="border border-black text-center">{rapor.alpha || 0} hari</td>
+                <td className="border border-black whitespace-nowrap px-1 py-[1px]">
+                  Tanpa Keterangan
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {rapor.alpha || 0} hari
+                </td>
               </tr>
             </tbody>
           </table>
 
-          <table className="w-full border border-black border-collapse text-[11px]" dir="rtl">
+          <table
+            className="w-full border border-black border-collapse text-[10px] leading-[1.1]"
+            dir="rtl"
+          >
             <thead className="bg-emerald-100 font-bold">
               <tr>
-                <th className="border border-black text-center">الوصف</th>
-                <th className="border border-black text-center">العدد</th>
+                <th className="border border-black text-center px-1 py-[1px]">
+                  الوصف
+                </th>
+                <th className="border border-black text-center px-1 py-[1px]">
+                  العدد
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="border border-black text-right">مريض</td>
-                <td className="border border-black text-center">{toArabicDigits(rapor.sakit || 0)}</td>
+                <td className="border border-black text-right px-1 py-[1px]">
+                  مريض
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {toArabicDigits(rapor.sakit || 0)}
+                </td>
               </tr>
               <tr>
-                <td className="border border-black text-right">إذن</td>
-                <td className="border border-black text-center">{toArabicDigits(rapor.izin || 0)}</td>
+                <td className="border border-black text-right px-1 py-[1px]">
+                  إذن
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {toArabicDigits(rapor.izin || 0)}
+                </td>
               </tr>
               <tr>
-                <td className="border border-black text-right">بدون بيان</td>
-                <td className="border border-black text-center">{toArabicDigits(rapor.alpha || 0)}</td>
+                <td className="border border-black text-right px-1 py-[1px]">
+                  بدون بيان
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {toArabicDigits(rapor.alpha || 0)}
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* Catatan Wali: satu baris tabel hemat tempat */}
-        <table className="w-full border border-black border-collapse text-[11px] leading-tight mt-2">
-  <tbody>
-    <tr>
-      <td className="border border-black p-1 text-left">
-        <span className="font-bold">Catatan Wali Kelas:</span>
-        <span className="italic">
-          {rapor?.catatan_wali && String(rapor.catatan_wali).trim() !== ""
-            ? ` ${rapor.catatan_wali}`
-            : " Ilmu akan menjadi cahaya bagi kehidupan, perbanyak membaca dan belajar dengan tekun."}
-        </span>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-        {/* Tanda Tangan: 1 baris, Kepala di tengah */}
-        <table className="w-full text-[11px] leading-tight mt-8 border-collapse">
+        {/* CATATAN WALI */}
+        <table className="w-full border border-black border-collapse text-[10px] leading-[1.1] mt-1">
           <tbody>
             <tr>
-              {/* Orang Tua/Wali */}
+              <td className="border border-black px-1 py-[1px] text-left">
+                <span className="font-bold">
+                  Catatan Wali Kelas:
+                </span>
+                <span className="italic">
+                  {rapor?.catatan_wali &&
+                  String(rapor.catatan_wali).trim() !== ""
+                    ? ` ${rapor.catatan_wali}`
+                    : " Ilmu akan menjadi cahaya bagi kehidupan, perbanyak membaca dan belajar dengan tekun."}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* TANDA TANGAN */}
+        <table className="w-full text-[10px] leading-[1.1] mt-6 border-collapse">
+          <tbody>
+            <tr>
+              {/* Orang tua */}
               <td className="w-1/3 border-0 align-top text-left">
-                Mengetahui<br />
-                Orang Tua/Wali,<br />
-                <div className="mt-12">......................</div>
+                Mengetahui
+                <br />
+                Orang Tua/Wali,
+                <br />
+                <div className="mt-10">......................</div>
               </td>
 
-              {/* Kepala Sekolah (tengah) */}
+              {/* Kepala sekolah */}
               <td className="w-1/3 border-0 align-top text-center">
-                Mengetahui<br />
-                Kepala Sekolah<br />
-                <div className="mt-12 inline-block text-center">
-                  <div className="font-bold underline">{formatNamaGelar(bio?.kepala_sekolah)}</div>
+                Mengetahui
+                <br />
+                Kepala Sekolah
+                <br />
+                <div className="mt-2 inline-block text-center">
+                  {ttdKepalaSekolahUrl && (
+                    <div className="mb-0.5 flex justify-center">
+                      <img
+                        src={ttdKepalaSekolahUrl}
+                        alt="Tanda tangan Kepala Sekolah"
+                        className="h-16 w-40 object-contain"
+                      />
+                    </div>
+                  )}
+                  <div className="font-bold underline">
+                    {formatNamaGelar(bio?.kepala_sekolah)}
+                  </div>
                   <div className="text-left">NIP.</div>
                 </div>
               </td>
 
-              {/* Wali Kelas */}
+              {/* Wali kelas */}
               <td className="w-1/3 border-0 align-top text-right">
-                Bagek Nyaka, 1 Oktober 2025<br />
-                Wali Kelas,<br />
-                <div className="mt-12 inline-block text-left">
-                  <div className="font-bold underline">{formatNamaGelar(wali?.nama_wali)}</div>
+                {waktuPembagianRaport}
+                <br />
+                Wali Kelas,
+                <br />
+                <div className="mt-10 inline-block text-left">
+                  <div className="font-bold underline">
+                    {formatNamaGelar(wali?.nama_wali)}
+                  </div>
                   <div>NIP.</div>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
+      </div>
 
-        {/* Tombol Print */}
-        <div className="mt-3 print:hidden">
-          <button onClick={() => window.print()} className="bg-black text-white px-3 py-1.5 rounded text-[11px]">
-            Print
-          </button>
-        </div>
+       {/* Tombol Download (print) */}
+      <div className="mt-4 print:hidden flex justify-center">
+        <button
+          onClick={handleDownloadPDF}
+          className="bg-black text-white px-4 py-2 rounded text-sm"
+        >
+          Download PDF
+        </button>
       </div>
     </div>
   );

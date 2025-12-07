@@ -31,11 +31,14 @@ function Pill({ ok, children }) {
 }
 
 /* ---------- Helpers ---------- */
-const nonEmpty = (v) => !(v === undefined || v === null || String(v).trim() === "");
+const nonEmpty = (v) =>
+  !(v === undefined || v === null || String(v).trim() === "");
 const uniq = (arr) => [...new Set(arr)];
 const safeOrder = async (colName) => {
   try {
-    return await getDocs(query(collection(db, colName), orderBy("createdAt", "asc")));
+    return await getDocs(
+      query(collection(db, colName), orderBy("createdAt", "asc"))
+    );
   } catch {
     return await getDocs(collection(db, colName));
   }
@@ -59,20 +62,24 @@ export default function PreviewNilaiPage() {
   const [loading, setLoading] = useState(true);
 
   // dataset mapel untuk SEMUA kelas (nanti difilter per kelas terpilih)
-  const [mapelUmum, setMapelUmum] = useState([]);     // [{id,nama,kelas}]
+  const [mapelUmum, setMapelUmum] = useState([]); // [{id,nama,kelas}]
   const [mapelPondok, setMapelPondok] = useState([]); // [{id,nama,kelas}]
 
-  const [siswaKelas, setSiswaKelas] = useState([]);   // siswa di kelas terpilih
-  const [raporMap, setRaporMap] = useState({});       // {nisn: {...rapor}}
+  const [siswaKelas, setSiswaKelas] = useState([]); // siswa di kelas terpilih
+  const [raporMap, setRaporMap] = useState({}); // {nisn: {...rapor}}
 
   /* ---------- Load mapel dari koleksi yang dipakai ---------- */
   useEffect(() => {
     (async () => {
       const umumSnap = await safeOrder("mapel_umum");
-      setMapelUmum(umumSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) })));
+      setMapelUmum(
+        umumSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }))
+      );
 
       const pondokSnap = await safeOrder("mapel_pondok");
-      setMapelPondok(pondokSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) })));
+      setMapelPondok(
+        pondokSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }))
+      );
     })();
   }, []);
 
@@ -80,9 +87,12 @@ export default function PreviewNilaiPage() {
   useEffect(() => {
     (async () => {
       const sSnap = await getDocs(collection(db, "siswa"));
-      const siswaAll = sSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
-      const list = uniq(siswaAll.map((s) => s.kelas).filter(Boolean)).sort((a, b) =>
-        String(a).localeCompare(String(b), "id")
+      const siswaAll = sSnap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() || {}),
+      }));
+      const list = uniq(siswaAll.map((s) => s.kelas).filter(Boolean)).sort(
+        (a, b) => String(a).localeCompare(String(b), "id")
       );
       setKelasList(list);
       if (!selectedKelas && list.length > 0) setSelectedKelas(list[0]);
@@ -97,7 +107,10 @@ export default function PreviewNilaiPage() {
       setLoading(true);
       try {
         const sSnap = await getDocs(collection(db, "siswa"));
-        const siswaAll = sSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+        const siswaAll = sSnap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() || {}),
+        }));
         const siswaKls = siswaAll.filter((s) => s.kelas === selectedKelas);
         setSiswaKelas(siswaKls);
 
@@ -115,24 +128,56 @@ export default function PreviewNilaiPage() {
   const { rowsUmum, rowsPondok } = useMemo(() => {
     const total = siswaKelas.length;
 
-    const calc = (mapelName) => {
+    // khusus UMUM: nilai + capaian wajib terisi
+    const calcUmum = (mapelName) => {
       let filled = 0;
       for (const s of siswaKelas) {
         const r = raporMap[s.nisn] || {};
-        if (nonEmpty(r[mapelName])) filled += 1; // nilai ada → dihitung
+        const nilai = r[mapelName];
+        // asumsi field capaian: "<namaMapel>_capaian" atau "capaian_<namaMapel>"
+        const capaian =
+          r[`${mapelName}_capaian`] ?? r[`capaian_${mapelName}`];
+
+        if (nonEmpty(nilai) && nonEmpty(capaian)) {
+          filled += 1;
+        }
       }
-      return { mapel: mapelName, total, filled, complete: total > 0 && filled === total };
+      return {
+        mapel: mapelName,
+        total,
+        filled,
+        complete: total > 0 && filled === total,
+      };
     };
 
-    const umumKelasDocs = mapelUmum.filter((m) => appliesToClass(m, selectedKelas));
-    const pondokKelasDocs = mapelPondok.filter((m) => appliesToClass(m, selectedKelas));
+    // PONDOK: cukup nilai saja seperti sebelumnya
+    const calcPondok = (mapelName) => {
+      let filled = 0;
+      for (const s of siswaKelas) {
+        const r = raporMap[s.nisn] || {};
+        if (nonEmpty(r[mapelName])) filled += 1;
+      }
+      return {
+        mapel: mapelName,
+        total,
+        filled,
+        complete: total > 0 && filled === total,
+      };
+    };
+
+    const umumKelasDocs = mapelUmum.filter((m) =>
+      appliesToClass(m, selectedKelas)
+    );
+    const pondokKelasDocs = mapelPondok.filter((m) =>
+      appliesToClass(m, selectedKelas)
+    );
 
     const umum = umumKelasDocs
-      .map((m) => calc(m.nama))
+      .map((m) => calcUmum(m.nama))
       .sort((a, b) => String(a.mapel).localeCompare(String(b.mapel), "id"));
 
     const pondok = pondokKelasDocs
-      .map((m) => calc(m.nama))
+      .map((m) => calcPondok(m.nama))
       .sort((a, b) => String(a.mapel).localeCompare(String(b.mapel), "id"));
 
     return { rowsUmum: umum, rowsPondok: pondok };
@@ -170,9 +215,15 @@ export default function PreviewNilaiPage() {
               {loading ? "⏳ Memuat..." : `Total siswa: ${siswaKelas.length}`}
             </div>
             <Link
-              href={selectedKelas ? `/leger/${encodeURIComponent(selectedKelas)}` : "#"}
+              href={
+                selectedKelas
+                  ? `/leger/${encodeURIComponent(selectedKelas)}`
+                  : "#"
+              }
               className={`text-sm px-3 py-2 rounded-md text-white transition ${
-                selectedKelas ? "bg-indigo-600 hover:bg-indigo-700" : "bg-slate-300 cursor-not-allowed"
+                selectedKelas
+                  ? "bg-indigo-600 hover:bg-indigo-700"
+                  : "bg-slate-300 cursor-not-allowed"
               }`}
               aria-disabled={!selectedKelas}
             >
@@ -188,21 +239,36 @@ export default function PreviewNilaiPage() {
               <table className="w-full text-sm">
                 <thead className="bg-indigo-50">
                   <tr className="text-slate-700">
-                    <th className="w-14 px-3 py-2 border-b border-slate-200 text-center">No</th>
-                    <th className="px-3 py-2 border-b border-slate-200 text-left">Nama Mapel</th>
-                    <th className="w-56 px-3 py-2 border-b border-slate-200 text-left">Keterangan</th>
+                    <th className="w-14 px-3 py-2 border-b border-slate-200 text-center">
+                      No
+                    </th>
+                    <th className="px-3 py-2 border-b border-slate-200 text-left">
+                      Nama Mapel
+                    </th>
+                    <th className="w-56 px-3 py-2 border-b border-slate-200 text-left">
+                      Keterangan
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {rowsUmum.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-3 py-6 text-center text-slate-500">
-                        Kelas ini belum punya mapel umum pada koleksi <b>mapel_umum</b>.
+                      <td
+                        colSpan={3}
+                        className="px-3 py-6 text-center text-slate-500"
+                      >
+                        Kelas ini belum punya mapel umum pada koleksi{" "}
+                        <b>mapel_umum</b>.
                       </td>
                     </tr>
                   ) : (
                     rowsUmum.map((r, i) => (
-                      <tr key={`${r.mapel}-u-${i}`} className={i % 2 ? "bg-white" : "bg-slate-50/50"}>
+                      <tr
+                        key={`${r.mapel}-u-${i}`}
+                        className={
+                          i % 2 ? "bg-white" : "bg-slate-50/50"
+                        }
+                      >
                         <td className="px-3 py-2 text-center">{i + 1}</td>
                         <td className="px-3 py-2">{r.mapel}</td>
                         <td className="px-3 py-2">
@@ -226,21 +292,36 @@ export default function PreviewNilaiPage() {
               <table className="w-full text-sm">
                 <thead className="bg-emerald-50">
                   <tr className="text-slate-700">
-                    <th className="w-14 px-3 py-2 border-b border-slate-200 text-center">No</th>
-                    <th className="px-3 py-2 border-b border-slate-200 text-left">Nama Mapel</th>
-                    <th className="w-56 px-3 py-2 border-b border-slate-200 text-left">Keterangan</th>
+                    <th className="w-14 px-3 py-2 border-b border-slate-200 text-center">
+                      No
+                    </th>
+                    <th className="px-3 py-2 border-b border-slate-200 text-left">
+                      Nama Mapel
+                    </th>
+                    <th className="w-56 px-3 py-2 border-b border-slate-200 text-left">
+                      Keterangan
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {rowsPondok.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-3 py-6 text-center text-slate-500">
-                        Kelas ini belum punya mapel pondok pada koleksi <b>mapel_pondok</b>.
+                      <td
+                        colSpan={3}
+                        className="px-3 py-6 text-center text-slate-500"
+                      >
+                        Kelas ini belum punya mapel pondok pada koleksi{" "}
+                        <b>mapel_pondok</b>.
                       </td>
                     </tr>
                   ) : (
                     rowsPondok.map((r, i) => (
-                      <tr key={`${r.mapel}-p-${i}`} className={i % 2 ? "bg-white" : "bg-slate-50/50"}>
+                      <tr
+                        key={`${r.mapel}-p-${i}`}
+                        className={
+                          i % 2 ? "bg-white" : "bg-slate-50/50"
+                        }
+                      >
                         <td className="px-3 py-2 text-center">{i + 1}</td>
                         <td className="px-3 py-2">{r.mapel}</td>
                         <td className="px-3 py-2">

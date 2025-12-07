@@ -285,8 +285,8 @@ export default function LegerKelasPage() {
   const tdPrint = `${tdBase} w-20 text-center`;
 
   return (
-    <div className="min-h-screen bg-slate-100 text-black">
-      <div className="max-w-[1200px] mx-auto px-6 py-8">
+     <div className="min-h-screen bg-slate-100 text-black">
+    <div className="w-full px-3 sm:px-6 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
             Leger Nilai — Kelas {kelas}

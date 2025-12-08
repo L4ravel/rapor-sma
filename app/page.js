@@ -74,7 +74,7 @@ const CATEGORIES = [
     label: "Wali Kelas",
     description: "Menu harian wali kelas.",
     actions: [
-      { href: "/absensi-siswa", label: "Absensi Siswa", icon: "calendar" },      
+      { href: "/absensi-siswa", label: "Absensi Siswa", icon: "calendar" },
       { href: "/input-tahfidz", label: "Input Nilai Tahfidz", icon: "book" },
       { href: "/siswa", label: "Lihat Rapor", icon: "cap" },
       { href: "/preview-nilai", label: "Cetak Rapor", icon: "chart" },
@@ -90,6 +90,30 @@ const CATEGORIES = [
     ],
   },
 ];
+
+// fungsi mapping email -> kategori yang boleh
+function getAllowedCategoryIdsByEmail(emailRaw) {
+  const email = (emailRaw || "").toLowerCase().trim();
+
+  if (email === "admin@smpia.com", "admin@smaia.com", "usmanirawan00@gmail.com") {
+    // admin boleh semua
+    return ["admin", "wali", "guru"];
+  }
+
+  if (email === "walikelas@smpia.com", "walikelas@smaia.com") {
+    // wali kelas boleh wali + guru
+    return ["wali", "guru"];
+  }
+
+  if (email === "guru@smpia.com", "guru@smaia.com") {
+    // guru hanya kategori guru
+    return ["guru"];
+  }
+
+  // default (email lain): misalnya tidak boleh apa-apa
+  // kalau mau default semua, ganti return [...] di bawah
+  return [];
+}
 
 export default function Home() {
   const router = useRouter();
@@ -166,12 +190,19 @@ export default function Home() {
     setOpenCategory((prev) => (prev === id ? null : id));
   };
 
+  // tentukan kategori yang boleh diakses berdasarkan email user
+  const userEmail = user?.email || "";
+  const allowedCategoryIds = getAllowedCategoryIdsByEmail(userEmail);
+  const visibleCategories = CATEGORIES.filter((cat) =>
+    allowedCategoryIds.includes(cat.id)
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-100 px-4 py-8">
       <div className="relative w-full max-w-3xl mx-auto">
         {/* Glow effect */}
         <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-blue-400/20 via-slate-400/10 to-purple-400/20 blur-3xl" />
-        
+
         <div className="relative rounded-[32px] bg-white ring-1 ring-slate-300/50 shadow-2xl shadow-slate-900/10 p-6 sm:p-8 md:p-10">
           {/* Header */}
           <div className="flex items-start justify-between gap-4 pb-6 border-b border-slate-100">
@@ -195,9 +226,11 @@ export default function Home() {
                   </div>
                   <span>
                     <b className="text-slate-700">{user.email || "user"}</b>
-                    {role && <span className="ml-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                      {role}
-                    </span>}
+                    {role && (
+                      <span className="ml-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
+                        {role}
+                      </span>
+                    )}
                   </span>
                 </div>
               )}
@@ -216,7 +249,13 @@ export default function Home() {
 
           {/* Accordion kategori */}
           <div className="mt-6 space-y-4">
-            {CATEGORIES.map((cat) => {
+            {visibleCategories.length === 0 && (
+              <div className="text-center text-xs sm:text-sm text-slate-500 py-6">
+                Tidak ada menu yang dapat diakses untuk akun ini.
+              </div>
+            )}
+
+            {visibleCategories.map((cat) => {
               const isOpen = openCategory === cat.id;
               return (
                 <div
@@ -230,22 +269,26 @@ export default function Home() {
                     className="w-full flex items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-xl grid place-items-center transition-all duration-300 ${
-                        isOpen 
-                          ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/40' 
-                          : 'bg-gradient-to-br from-slate-100 to-slate-50 shadow-sm shadow-slate-900/5 group-hover:from-blue-50 group-hover:to-white group-hover:shadow-md group-hover:shadow-blue-500/20'
-                      }`}>
-                        <Icon 
-                          name={cat.actions[0].icon} 
+                      <div
+                        className={`h-10 w-10 rounded-xl grid place-items-center transition-all duration-300 ${
+                          isOpen
+                            ? "bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/40"
+                            : "bg-gradient-to-br from-slate-100 to-slate-50 shadow-sm shadow-slate-900/5 group-hover:from-blue-50 group-hover:to-white group-hover:shadow-md group-hover:shadow-blue-500/20"
+                        }`}
+                      >
+                        <Icon
+                          name={cat.actions[0].icon}
                           className={`h-5 w-5 transition-colors duration-300 ${
-                            isOpen ? 'text-white' : 'text-slate-600 group-hover:text-blue-600'
-                          }`} 
+                            isOpen ? "text-white" : "text-slate-600 group-hover:text-blue-600"
+                          }`}
                         />
                       </div>
                       <div className="flex flex-col items-start text-left">
-                        <span className={`text-sm sm:text-base font-bold transition-colors duration-300 ${
-                          isOpen ? 'text-slate-900' : 'text-slate-800 group-hover:text-slate-900'
-                        }`}>
+                        <span
+                          className={`text-sm sm:text-base font-bold transition-colors duration-300 ${
+                            isOpen ? "text-slate-900" : "text-slate-800 group-hover:text-slate-900"
+                          }`}
+                        >
                           {cat.label}
                         </span>
                         <span className="mt-0.5 text-[11px] sm:text-xs text-slate-500 group-hover:text-slate-600 transition-colors duration-300">
@@ -253,17 +296,17 @@ export default function Home() {
                         </span>
                       </div>
                     </div>
-                    <div className={`h-8 w-8 rounded-lg grid place-items-center transition-all duration-300 ${
-                      isOpen 
-                        ? 'bg-blue-50 ring-2 ring-blue-200 shadow-sm shadow-blue-500/20' 
-                        : 'bg-slate-50 group-hover:bg-white ring-1 ring-slate-200 group-hover:ring-slate-300 shadow-sm shadow-slate-900/5'
-                    }`}>
+                    <div
+                      className={`h-8 w-8 rounded-lg grid place-items-center transition-all duration-300 ${
+                        isOpen
+                          ? "bg-blue-50 ring-2 ring-blue-200 shadow-sm shadow-blue-500/20"
+                          : "bg-slate-50 group-hover:bg-white ring-1 ring-slate-200 group-hover:ring-slate-300 shadow-sm shadow-slate-900/5"
+                      }`}
+                    >
                       <Icon
                         name="chevronDown"
                         className={`h-4 w-4 transition-all duration-300 ${
-                          isOpen 
-                            ? 'rotate-180 text-blue-600' 
-                            : 'text-slate-500 group-hover:text-slate-700'
+                          isOpen ? "rotate-180 text-blue-600" : "text-slate-500 group-hover:text-slate-700"
                         }`}
                       />
                     </div>
@@ -277,7 +320,10 @@ export default function Home() {
                           <div
                             key={action.href}
                             className="animate-in fade-in-0 slide-in-from-bottom-2"
-                            style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'backwards' }}
+                            style={{
+                              animationDelay: `${idx * 50}ms`,
+                              animationFillMode: "backwards",
+                            }}
                           >
                             <ActionBtn
                               href={action.href}

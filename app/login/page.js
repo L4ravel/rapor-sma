@@ -89,9 +89,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-[#f5f3ff]">
-      {/* Banner Maintenance (tidak mempengaruhi login) */}
-      <MaintenanceBanner />
-
       {/* PANEL BACKGROUND besar — GRADIENT UNGU (seperti contoh) */}
       <div className="relative w-full max-w-6xl h-[560px] md:h-[520px] rounded-[28px] overflow-hidden shadow-2xl">
         {/* gradien ungu pekat */}

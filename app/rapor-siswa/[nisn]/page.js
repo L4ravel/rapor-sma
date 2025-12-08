@@ -83,7 +83,7 @@ export default function DetailRaporSiswa() {
   useEffect(() => {
     if (redirectChecked) return;
 
-    const RELEASE = new Date("2026-10-01T08:00:00+08:00").getTime();
+    const RELEASE = new Date("2025-12-20T08:00:00+08:00").getTime();
     const now = Date.now();
 
     let role = null;

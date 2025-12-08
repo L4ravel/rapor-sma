@@ -47,7 +47,10 @@ function ActionBtn({ href, label, icon }) {
     >
       <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-50/50 to-blue-50/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-xl" />
       <span className="relative grid place-items-center rounded-lg p-2.5 bg-gradient-to-br from-slate-100 to-slate-50 ring-1 ring-slate-200/50 group-hover:ring-blue-200 group-hover:from-blue-50 group-hover:to-white transition-all duration-300 shadow-sm">
-        <Icon name={icon} className="h-5 w-5 text-slate-700 group-hover:text-blue-600 transition-colors duration-300" />
+        <Icon
+          name={icon}
+          className="h-5 w-5 text-slate-700 group-hover:text-blue-600 transition-colors duration-300"
+        />
       </span>
       <span className="relative font-semibold tracking-wide text-sm group-hover:text-slate-900">
         {label}
@@ -83,7 +86,7 @@ const CATEGORIES = [
   {
     id: "guru",
     label: "Guru",
-    description: "Pengisian nilai dan pemantauan rapor.",
+    description: "Pengisian nilai rapor.",
     actions: [
       { href: "/input-nilai/pondok", label: "Input Nilai Pondok", icon: "pencil" },
       { href: "/input-nilai/umum", label: "Input Nilai Umum", icon: "pencil" },
@@ -91,27 +94,29 @@ const CATEGORIES = [
   },
 ];
 
-// fungsi mapping email -> kategori yang boleh
+// ✅ mapping email -> kategori yang diizinkan
 function getAllowedCategoryIdsByEmail(emailRaw) {
   const email = (emailRaw || "").toLowerCase().trim();
 
-  if (email === "admin@smpia.com", "admin@smaia.com", "usmanirawan00@gmail.com") {
+  // ===== ADMIN =====
+  if (email === "admin@smpia.com" || email === "admin@smaia.com" || email === "usmanirawan00@gmail.com") {
     // admin boleh semua
     return ["admin", "wali", "guru"];
   }
 
-  if (email === "walikelas@smpia.com", "walikelas@smaia.com") {
+  // ===== WALI KELAS =====
+  if (email === "walikelas@smpia.com" || email === "walikelas@smaia.com") {
     // wali kelas boleh wali + guru
     return ["wali", "guru"];
   }
 
-  if (email === "guru@smpia.com", "guru@smaia.com") {
+  // ===== GURU =====
+  if (email === "guru@smpia.com" || email === "guru@smaia.com") {
     // guru hanya kategori guru
     return ["guru"];
   }
 
-  // default (email lain): misalnya tidak boleh apa-apa
-  // kalau mau default semua, ganti return [...] di bawah
+  // email lain: tidak ada kategori (bisa kamu ubah kalau mau)
   return [];
 }
 
@@ -168,7 +173,9 @@ export default function Home() {
         <div className="text-center">
           <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-white ring-1 ring-slate-200 shadow-xl shadow-slate-900/10">
             <div className="h-5 w-5 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
-            <span className="text-slate-700 text-sm font-medium">Memeriksa sesi...</span>
+            <span className="text-slate-700 text-sm font-medium">
+              Memeriksa sesi...
+            </span>
           </div>
         </div>
       </div>
@@ -190,7 +197,7 @@ export default function Home() {
     setOpenCategory((prev) => (prev === id ? null : id));
   };
 
-  // tentukan kategori yang boleh diakses berdasarkan email user
+  // 🔐 Filter kategori berdasarkan email user
   const userEmail = user?.email || "";
   const allowedCategoryIds = getAllowedCategoryIdsByEmail(userEmail);
   const visibleCategories = CATEGORIES.filter((cat) =>
@@ -209,13 +216,16 @@ export default function Home() {
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-blue-50 to-slate-50 ring-1 ring-blue-100 mb-3">
                 <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[11px] font-medium text-slate-600">Dashboard Aktif</span>
+                <span className="text-[11px] font-medium text-slate-600">
+                  Dashboard Aktif
+                </span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-br from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent">
                 Menu Utama
               </h2>
               <p className="mt-2.5 text-slate-600 text-xs sm:text-sm leading-relaxed max-w-lg">
-                Pilih kategori sesuai peran Anda. Klik kategori untuk menampilkan menu yang tersedia.
+                Pilih kategori sesuai peran Anda. Klik kategori untuk
+                menampilkan menu yang tersedia.
               </p>
               {user && (
                 <div className="mt-3 flex items-center gap-2 text-[11px] sm:text-xs text-slate-500">
@@ -241,7 +251,10 @@ export default function Home() {
                 className="group inline-flex items-center gap-2 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 ring-1 ring-slate-200/50 hover:ring-slate-300 text-xs sm:text-sm font-medium transition-all duration-300"
                 title="Logout"
               >
-                <Icon name="logout" className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-0.5" />
+                <Icon
+                  name="logout"
+                  className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-0.5"
+                />
                 <span className="hidden sm:inline">Keluar</span>
               </button>
             )}
@@ -279,14 +292,18 @@ export default function Home() {
                         <Icon
                           name={cat.actions[0].icon}
                           className={`h-5 w-5 transition-colors duration-300 ${
-                            isOpen ? "text-white" : "text-slate-600 group-hover:text-blue-600"
+                            isOpen
+                              ? "text-white"
+                              : "text-slate-600 group-hover:text-blue-600"
                           }`}
                         />
                       </div>
                       <div className="flex flex-col items-start text-left">
                         <span
                           className={`text-sm sm:text-base font-bold transition-colors duration-300 ${
-                            isOpen ? "text-slate-900" : "text-slate-800 group-hover:text-slate-900"
+                            isOpen
+                              ? "text-slate-900"
+                              : "text-slate-800 group-hover:text-slate-900"
                           }`}
                         >
                           {cat.label}
@@ -306,7 +323,9 @@ export default function Home() {
                       <Icon
                         name="chevronDown"
                         className={`h-4 w-4 transition-all duration-300 ${
-                          isOpen ? "rotate-180 text-blue-600" : "text-slate-500 group-hover:text-slate-700"
+                          isOpen
+                            ? "rotate-180 text-blue-600"
+                            : "text-slate-500 group-hover:text-slate-700"
                         }`}
                       />
                     </div>

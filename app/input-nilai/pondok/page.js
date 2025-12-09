@@ -23,7 +23,8 @@ const clampScore = (v) => {
   if (n > 100) n = 100;
   return String(n);
 };
-const limitChars = (text, max = 150) => (!text ? "" : String(text).slice(0, max));
+const limitChars = (text, max = 150) =>
+  !text ? "" : String(text).slice(0, max);
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 /* ================ Page ================ */
@@ -43,7 +44,11 @@ export default function InputNilaiPondokPage() {
   const [dirty, setDirty] = useState(false);
 
   // Import Excel
-  const [importInfo, setImportInfo] = useState({ rows: 0, updated: 0, skippedNew: 0 });
+  const [importInfo, setImportInfo] = useState({
+    rows: 0,
+    updated: 0,
+    skippedNew: 0,
+  });
   const fileInputRef = useRef(null);
   const XLSXRef = useRef(null);
 
@@ -118,7 +123,8 @@ export default function InputNilaiPondokPage() {
           ...s,
           id: s.id || s.nisn,
           nilaiPondok: nested.nilai ?? nilaiFlat ?? "",
-          capaianPondok: nested.capaian ?? r[`capaian_${selectedMapelPondok}`] ?? "",
+          capaianPondok:
+            nested.capaian ?? r[`capaian_${selectedMapelPondok}`] ?? "",
         };
       });
 
@@ -132,11 +138,11 @@ export default function InputNilaiPondokPage() {
   };
 
   useEffect(() => {
-  // kalau belum ada kelas terpilih, otomatis pakai kelas pertama
-  if (!selectedKelas && daftarKelas.length > 0) {
-    setSelectedKelas(daftarKelas[0]);
-  }
-}, [daftarKelas, selectedKelas]);
+    // kalau belum ada kelas terpilih, otomatis pakai kelas pertama
+    if (!selectedKelas && daftarKelas.length > 0) {
+      setSelectedKelas(daftarKelas[0]);
+    }
+  }, [daftarKelas, selectedKelas]);
 
   useEffect(() => {
     fetchData(true);
@@ -171,20 +177,20 @@ export default function InputNilaiPondokPage() {
 
   /* ---- Filter siswa berdasarkan kelas + SORT NAMA A→Z ---- */
   const filtered = useMemo(() => {
-  // kalau belum ada kelas terpilih, jangan tampilkan apa pun dulu
-  if (!selectedKelas) return [];
+    // kalau belum ada kelas terpilih, jangan tampilkan apa pun dulu
+    if (!selectedKelas) return [];
 
-  const result = data.filter((r) => r.kelas === selectedKelas);
+    const result = data.filter((r) => r.kelas === selectedKelas);
 
-  // urutkan berdasarkan nama_siswa (A-Z)
-  return [...result].sort((a, b) =>
-    String(a?.nama_siswa || "").localeCompare(
-      String(b?.nama_siswa || ""),
-      "id",
-      { sensitivity: "base" }
-    )
-  );
-}, [data, selectedKelas]);
+    // urutkan berdasarkan nama_siswa (A-Z)
+    return [...result].sort((a, b) =>
+      String(a?.nama_siswa || "").localeCompare(
+        String(b?.nama_siswa || ""),
+        "id",
+        { sensitivity: "base" }
+      )
+    );
+  }, [data, selectedKelas]);
 
   const visible = useMemo(() => filtered.slice(0, 50), [filtered]);
 
@@ -229,8 +235,15 @@ export default function InputNilaiPondokPage() {
       : data
     ).map((r) => [r.nisn, r.nama_siswa, r.kelas, ""]);
 
+    // Tambah metadata supaya file "terkunci" ke mapel & kelas
+    const metaRows = [
+      ["MAPEL_PONDOK", selectedMapelPondok || ""],
+      ["KELAS", selectedKelas || "ALL"],
+      [],
+    ];
+
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const ws = XLSX.utils.aoa_to_sheet([...metaRows, header, ...rows]);
     ws["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 10 }, { wch: 8 }];
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(
@@ -245,7 +258,12 @@ export default function InputNilaiPondokPage() {
     if (!XLSXRef.current) XLSXRef.current = await import("xlsx");
     const XLSX = XLSXRef.current;
 
-    const header = ["nisn", "nama_siswa", "kelas", `nilai_${selectedMapelPondok}`];
+    const header = [
+      "nisn",
+      "nama_siswa",
+      "kelas",
+      `nilai_${selectedMapelPondok}`,
+    ];
     const rows = (selectedKelas
       ? data.filter((d) => d.kelas === selectedKelas)
       : data
@@ -284,10 +302,66 @@ export default function InputNilaiPondokPage() {
       return;
     }
 
-    const header = rows[0].map((h) => String(h ?? "").trim());
+    // Baca metadata MAPEL_PONDOK & KELAS (kalau ada)
+    let mapelFromFile = "";
+    let kelasFromFile = "";
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const row = rows[i];
+      if (!row || row.length < 2) continue;
+      const key = String(row[0] ?? "").trim().toUpperCase();
+      const val = String(row[1] ?? "").trim();
+      if (key === "MAPEL_PONDOK") {
+        mapelFromFile = val;
+      } else if (key === "KELAS") {
+        kelasFromFile = val;
+      }
+    }
+
+    // Cek kecocokan mapel
+    if (
+      mapelFromFile &&
+      selectedMapelPondok &&
+      mapelFromFile !== selectedMapelPondok
+    ) {
+      alert(
+        `File ini untuk mapel "${mapelFromFile}", sedangkan yang sedang dipilih adalah "${selectedMapelPondok}".\n\nImport dibatalkan agar tidak salah mapel.`
+      );
+      return;
+    }
+
+    // Cek kecocokan kelas (kecuali ALL)
+    if (
+      kelasFromFile &&
+      kelasFromFile !== "ALL" &&
+      selectedKelas &&
+      kelasFromFile !== selectedKelas
+    ) {
+      alert(
+        `File ini untuk kelas "${kelasFromFile}", sedangkan yang sedang dipilih adalah "${selectedKelas}".\n\nImport dibatalkan agar tidak salah kelas.`
+      );
+      return;
+    }
+
+    // Cari baris header yang berisi 'nisn'
+    let headerRowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      const headerNormLocal = row.map((h) => norm(h ?? ""));
+      if (headerNormLocal.includes("nisn")) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1) {
+      alert("Header wajib memuat kolom: nisn.");
+      return;
+    }
+
+    const header = rows[headerRowIndex].map((h) => String(h ?? "").trim());
     const headerNorm = header.map((h) => norm(h));
-    const hasHeader = headerNorm.includes("nisn");
-    const startIdx = hasHeader ? 1 : 0;
+    const startIdx = headerRowIndex + 1;
 
     const idxByName = (names) => {
       for (const name of names) {
@@ -302,7 +376,11 @@ export default function InputNilaiPondokPage() {
     const idxKelas = idxByName(["kelas"]);
 
     const mNorm = norm(selectedMapelPondok);
-    const kandidatNilai = [`nilai`, `nilai_${selectedMapelPondok}`, `nilai_${mNorm}`];
+    const kandidatNilai = [
+      `nilai`,
+      `nilai_${selectedMapelPondok}`,
+      `nilai_${mNorm}`,
+    ];
 
     let idxNilai = idxByName(kandidatNilai);
     if (idxNilai === -1) {
@@ -415,8 +493,8 @@ export default function InputNilaiPondokPage() {
 
   /* =============== UI =============== */
   return (
-     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-0">
-    <div className="bg-white w-full min-h-screen px-3 py-4 md:px-6 md:py-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-0">
+      <div className="bg-white w-full min-h-screen px-3 py-4 md:px-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl md:text-3xl font-extrabold text-black">
             📗 Input Nilai — Mapel Pondok
@@ -473,19 +551,19 @@ export default function InputNilaiPondokPage() {
             <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 md:items-end">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-  Filter Kelas
-</label>
-<select
-  value={selectedKelas}
-  onChange={(e) => handleChangeKelas(e.target.value)}
-  className="w-full rounded-md bg-white text-black px-3 py-2 text-xs md:text-sm border border-gray-300 focus:ring-2 focus:ring-emerald-400"
->
-  {daftarKelas.map((k) => (
-    <option key={k} value={k}>
-      {k}
-    </option>
-  ))}
-</select>
+                  Filter Kelas
+                </label>
+                <select
+                  value={selectedKelas}
+                  onChange={(e) => handleChangeKelas(e.target.value)}
+                  className="w-full rounded-md bg-white text-black px-3 py-2 text-xs md:text-sm border border-gray-300 focus:ring-2 focus:ring-emerald-400"
+                >
+                  {daftarKelas.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -544,13 +622,13 @@ export default function InputNilaiPondokPage() {
                           }`}
                         >
                           <td className="p-2 border border-gray-300/50 text-black">
-  <div
-    className="text-xs font-semibold truncate"
-    title={row.nama_siswa}
-  >
-    {idx + 1}. {row.nama_siswa}
-  </div>
-</td>
+                            <div
+                              className="text-xs font-semibold truncate"
+                              title={row.nama_siswa}
+                            >
+                              {idx + 1}. {row.nama_siswa}
+                            </div>
+                          </td>
                           <td className="p-2 border border-gray-300/50 text-center align-top w-28">
                             <input
                               type="number"
@@ -584,10 +662,10 @@ export default function InputNilaiPondokPage() {
             {/* Tabel desktop: lengkap */}
             <div className="hidden md:block">
               <div className="overflow-x-auto rounded-2xl border border-gray-300/50 shadow-md">
-                 <table className="w-full text-sm table-fixed overflow-hidden rounded-2xl border border-gray-300/50">
+                <table className="w-full text-sm table-fixed overflow-hidden rounded-2xl border border-gray-300/50">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-emerald-200 to-teal-200 text-black text-xs">
-                     <th className="p-1 w-[40px] border border-gray-300/50 text-center">
+                      <th className="p-1 w-[40px] border border-gray-300/50 text-center">
                         No
                       </th>
                       <th className="p-1 w-[100px] border border-gray-300/50 text-center">

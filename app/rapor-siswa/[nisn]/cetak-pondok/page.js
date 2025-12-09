@@ -343,6 +343,9 @@ export default function CetakRaporPondok() {
   const H_ket = (hafalan.keterangan ?? "").toString().trim();
   const H_nilai = Number(hafalan.nilai ?? 0);
 
+  // ===== POIN PELANGGARAN =====
+  const P_poin = Number(rapor.poin ?? 0);
+
   // Semester & Tahun (Umum + Arab)
   const semesterUmum = bio?.semesterUmum || biodata.semester;
   const tahunUmum = bio?.tahunPelajaranUmum || biodata.tahun;
@@ -373,7 +376,7 @@ export default function CetakRaporPondok() {
       {/* Wrapper konten:
           - di layar: max-w-900 dan center
           - di print: full width (max-w-none) */}
-       <div className="w-full max-w-[900px] mx-auto p-4 pb-8 print:max-w-none print:p-0">
+      <div className="w-full max-w-[900px] mx-auto p-4 pb-8 print:max-w-none print:p-0">
         {/* KOP */}
         <div className="text-center mb-0">
           <img
@@ -490,110 +493,126 @@ export default function CetakRaporPondok() {
         </table>
 
         {/* TABEL NILAI PONDOK */}
-        <table className="w-full border border-black border-collapse text-[9px] leading-[1.1]">
-          <thead className="bg-emerald-100 text-[10px] font-bold">
-            <tr>
-              {/* Indonesia */}
-              <th className="w-[28px] border border-black text-center px-1 py-[1px]">
-                No
-              </th>
-              <th className="w-[210px] border border-black text-center px-1 py-[1px]">
-                Mata Pelajaran
-              </th>
-              <th className="w-[55px] border border-black text-center px-1 py-[1px]">
-                Angka
-              </th>
-              <th className="w-[200px] border border-black text-center px-1 py-[1px]">
-                Huruf
-              </th>
-
-              {/* Arab */}
-              <th
-                className="w-[200px] border border-black text-center px-1 py-[1px]"
-                dir="rtl"
-              >
-                كتابة
-              </th>
-              <th
-                className="w-[55px] border border-black text-center px-1 py-[1px]"
-                dir="rtl"
-              >
-                الدرجة
-              </th>
-              <th
-                className="w-[210px] border border-black text-center px-1 py-[1px]"
-                dir="rtl"
-              >
-                المادة الدراسية
-              </th>
-              <th
-                className="w-[28px] border border-black text-center px-1 py-[1px]"
-                dir="rtl"
-              >
-                رقم
-              </th>
+<div className="grid grid-cols-2 gap-[2px]">
+  {/* ============= INDONESIA ============= */}
+  <table className="w-full border border-black border-collapse text-[9px] leading-[1.1]">
+    <thead className="bg-emerald-100 text-[10px] font-bold">
+      <tr>
+        <th className="w-[28px] border border-black text-center px-1 py-[1px]">
+          No
+        </th>
+        <th className="border border-black text-center px-1 py-[1px]">
+          Mata Pelajaran
+        </th>
+        <th className="w-[55px] border border-black text-center px-1 py-[1px]">
+          Angka
+        </th>
+        <th className="border border-black text-center px-1 py-[1px]">
+          Huruf
+        </th>
+      </tr>
+    </thead>
+    <tbody className="text-[9px]">
+      {rowsPondok.length === 0 ? (
+        <tr>
+          <td
+            colSpan={4}
+            className="border border-black text-center px-1 py-[1px]"
+          >
+            Tidak ada data.
+          </td>
+        </tr>
+      ) : (
+        rowsPondok.map((r, i) => {
+          const n = Number(r.nilai);
+          return (
+            <tr key={r.mapel}>
+              <td className="border border-black text-center px-1 py-[1px]">
+                {i + 1}
+              </td>
+              <td className="border border-black px-1 py-[1px]">
+                {fmt(r.mapel)}
+              </td>
+              {/* Angka di kolom ketiga (seperti gambar) */}
+              <td className="border border-black text-center font-semibold px-1 py-[1px]">
+                {isNaN(n) ? "" : n}
+              </td>
+              {/* Tulisan huruf di kanan angka */}
+              <td className="border border-black px-1 py-[1px]">
+                {isNaN(n) ? "" : terbilangID(n)}
+              </td>
             </tr>
-          </thead>
-          <tbody className="text-[9px]">
-            {rowsPondok.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="border border-black text-center px-1 py-[1px]"
-                >
-                  Tidak ada data.
-                </td>
-              </tr>
-            ) : (
-              rowsPondok.map((r, i) => {
-                const n = Number(r.nilai);
-                return (
-                  <tr key={r.mapel}>
-                    {/* Indonesia */}
-                    <td className="border border-black text-center px-1 py-[1px]">
-                      {i + 1}
-                    </td>
-                    <td className="border border-black px-1 py-[1px]">
-                      {fmt(r.mapel)}
-                    </td>
-                    <td className="border border-black text-center font-semibold px-1 py-[1px]">
-                      {isNaN(n) ? "" : n}
-                    </td>
-                    <td className="border border-black px-1 py-[1px]">
-                      {isNaN(n) ? "" : terbilangID(n)}
-                    </td>
+          );
+        })
+      )}
+    </tbody>
+  </table>
 
-                    {/* Arab */}
-                    <td
-                      className="border border-black text-right px-1 py-[1px]"
-                      dir="rtl"
-                    >
-                      {isNaN(n) ? "" : terbilangAR(n)}
-                    </td>
-                    <td
-                      className="border border-black text-center font-semibold px-1 py-[1px]"
-                      dir="rtl"
-                    >
-                      {isNaN(n) ? "" : toArabicDigits(n)}
-                    </td>
-                    <td
-                      className="border border-black text-right px-1 py-[1px]"
-                      dir="rtl"
-                    >
-                      {getArab(r.mapel) || fmt(r.mapel)}
-                    </td>
-                    <td
-                      className="border border-black text-center px-1 py-[1px]"
-                      dir="rtl"
-                    >
-                      {toArabicDigits(i + 1)}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+    {/* ============= ARAB ============= */}
+  <table
+    className="w-full border border-black border-collapse text-[9px] leading-[1.1]"
+    dir="rtl"
+  >
+    <thead className="bg-emerald-100 text-[10px] font-bold">
+      <tr>
+        {/* urutan: رقم, المادة الدراسية, الدرجة, الدرجة */}
+        <th className="w-[28px] border border-black text-center px-1 py-[1px]">
+          رقم
+        </th>
+        <th className="border border-black text-center px-1 py-[1px]">
+          المادة الدراسية
+        </th>
+        <th className="w-[55px] border border-black text-center px-1 py-[1px]">
+          الدرجة
+        </th>
+        <th className="border border-black text-center px-1 py-[1px]">
+          الدرجة
+        </th>
+      </tr>
+    </thead>
+    <tbody className="text-[9px]">
+      {rowsPondok.length === 0 ? (
+        <tr>
+          <td
+            colSpan={4}
+            className="border border-black text-center px-1 py-[1px]"
+          >
+            لا توجد بيانات
+          </td>
+        </tr>
+      ) : (
+        rowsPondok.map((r, i) => {
+          const n = Number(r.nilai);
+          return (
+            <tr key={r.mapel}>
+              {/* رقم */}
+              <td className="border border-black text-center px-1 py-[1px]">
+                {toArabicDigits(i + 1)}
+              </td>
+
+              {/* المادة الدراسية */}
+              <td className="border border-black text-right px-1 py-[1px]">
+                {getArab(r.mapel) || fmt(r.mapel)}
+              </td>
+
+              {/* الدرجة (angka Arab, sejajar dengan Angka Indonesia) */}
+              <td className="border border-black text-center font-semibold px-1 py-[1px]">
+                {isNaN(n) ? "" : toArabicDigits(n)}
+              </td>
+
+              {/* الدرجة (tulisan / كتابة nilai) */}
+              <td className="border border-black text-right px-1 py-[1px]">
+                {isNaN(n) ? "" : terbilangAR(n)}
+              </td>
+            </tr>
+          );
+        })
+      )}
+    </tbody>
+  </table>
+
+</div>
+
 
         {/* RINGKASAN NILAI */}
         <div className="grid grid-cols-2 gap-[2px] mt-1">
@@ -829,6 +848,60 @@ export default function CetakRaporPondok() {
           </table>
         </div>
 
+        {/* POIN PELANGGARAN */}
+        <div className="grid grid-cols-2 gap-[2px] mt-1">
+          {/* Indonesia */}
+          <table className="w-full border border-black border-collapse text-[10px] leading-[1.1]">
+            <thead className="bg-emerald-100 font-bold">
+              <tr>
+                <th className="border border-black text-center px-1 py-[1px]">
+                  Poin Pelanggaran Santri
+                </th>
+                <th className="border border-black text-center px-1 py-[1px]">
+                  Jumlah
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-black px-1 py-[1px]">
+                  Jumlah poin pelanggaran
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {P_poin} poin
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Arab */}
+          <table
+            className="w-full border border-black border-collapse text-[10px] leading-[1.1]"
+            dir="rtl"
+          >
+            <thead className="bg-emerald-100 font-bold">
+              <tr>
+                <th className="border border-black text-center px-1 py-[1px]">
+                  نقاط المخالفة للطالب
+                </th>
+                <th className="border border-black text-center px-1 py-[1px]">
+                  العدد
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-black text-right px-1 py-[1px]">
+                  مجموع نقاط المخالفة
+                </td>
+                <td className="border border-black text-center px-1 py-[1px]">
+                  {toArabicDigits(P_poin)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         {/* CATATAN WALI */}
         <table className="w-full border border-black border-collapse text-[10px] leading-[1.1] mt-1">
           <tbody>
@@ -902,7 +975,7 @@ export default function CetakRaporPondok() {
         </table>
       </div>
 
-       {/* Tombol Download (print) */}
+      {/* Tombol Download (print) */}
       <div className="mt-4 print:hidden flex justify-center">
         <button
           onClick={handleDownloadPDF}

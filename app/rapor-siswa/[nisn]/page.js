@@ -24,7 +24,8 @@ const FIX_KEYS = [
   "alpha",
   "fase",
   "catatan_wali",
-  "locked", 
+  "locked",
+  "poin", // <-- agar tidak ikut terbaca sebagai mapel
 ];
 
 // Normalisasi nilai agar tidak me-render object langsung
@@ -541,6 +542,36 @@ export default function DetailRaporSiswa() {
     </div>
   );
 
+  const TablePoinPelanggaran = () => (
+    <div className="bg-white shadow rounded-lg overflow-hidden mt-4">
+      <h2 className="text-lg font-semibold text-black p-4 border-b">
+        ⚠️ Poin Pelanggaran
+      </h2>
+      <table className="w-full table-fixed border-collapse text-sm">
+        <thead className="bg-rose-100 text-black">
+          <tr>
+            <th className="w-3/4 p-3 text-left border border-gray-200">
+              Keterangan
+            </th>
+            <th className="w-1/4 p-3 text-center border border-gray-200">
+              Jumlah
+            </th>
+          </tr>
+        </thead>
+        <tbody className="text-black">
+          <tr>
+            <td className="p-3 border border-gray-200">
+              Jumlah poin pelanggaran
+            </td>
+            <td className="p-3 text-center border border-gray-200">
+              {normalizeNilai(rap.poin) || 0}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+
   const TableCatatanWali = () => (
     <div className="bg-white shadow rounded-lg mt-6">
       <h2 className="text-lg font-semibold text-black p-4 border-b">
@@ -574,7 +605,6 @@ export default function DetailRaporSiswa() {
 
         {/* Kop / Biodata Siswa – disamakan dengan kop umum (tanpa gambar) */}
         <div className="bg-white shadow rounded-lg p-6 mb-6 text-black">
-         
           <div className="mt-3 text-sm leading-snug">
             <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-y-3 md:gap-y-1 md:gap-x-16">
               {/* Kolom kiri */}
@@ -643,6 +673,7 @@ export default function DetailRaporSiswa() {
         <TablePondok />
         <TableHafalan />
         <TableAbsensi />
+        <TablePoinPelanggaran />
         <TableCatatanWali />
 
         {/* Cetak */}

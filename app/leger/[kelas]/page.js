@@ -349,36 +349,46 @@ export default function LegerKelasPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {tabelUmum.map((row, i) => {
-                        const m = metricsByNisn[row.nisn] || {};
-                        return (
-                          <tr key={`ru-${i}`} className={i % 2 ? "bg-white" : "bg-slate-50/50"}>
-                            <td className={`${tdBase} text-center`}>{row.no}</td>
-                            <td className={tdBase}>{row.nisn}</td>
-                            <td className={tdNama}>{row.nama}</td>
-                            {row.nilai.map((v, j) => (
-                              <td key={`rvu-${i}-${j}`} className={tdMapel}>
-                                {v}
-                              </td>
-                            ))}
-                            <td className={tdAbs}>{m.absensi || "0/0/0"}</td>
-                            <td className={tdAvg}>{(m.avgUmum ?? 0).toFixed(1)}</td>
-                            <td className={tdAvg}>{(m.avgPondok ?? 0).toFixed(1)}</td>
-                            <td className={tdTot}>{(m.total ?? 0).toFixed(1)}</td>
-                            <td className={tdRank}>{rankByNisn[row.nisn] ?? ""}</td>
-                            <td className={tdPrint}>
-                              <button
-                                onClick={() => printOne(row.nisn, "umum")}
-                                className="px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
-                                title="Cetak Rapor Umum"
-                              >
-                                Print
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
+  {tabelUmum
+    .slice()
+    .sort(
+      (a, b) =>
+        (rankByNisn[a.nisn] ?? 9999) - (rankByNisn[b.nisn] ?? 9999)
+    )
+    .map((row, i) => {
+      const m = metricsByNisn[row.nisn] || {};
+      return (
+        <tr
+          key={`ru-${i}`}
+          className={i % 2 ? "bg-white" : "bg-slate-50/50"}
+        >
+          {/* No sekarang ikut urutan ranking */}
+          <td className={`${tdBase} text-center`}>{i + 1}</td>
+          <td className={tdBase}>{row.nisn}</td>
+          <td className={tdNama}>{row.nama}</td>
+          {row.nilai.map((v, j) => (
+            <td key={`rvu-${i}-${j}`} className={tdMapel}>
+              {v}
+            </td>
+          ))}
+          <td className={tdAbs}>{m.absensi || "0/0/0"}</td>
+          <td className={tdAvg}>{(m.avgUmum ?? 0).toFixed(1)}</td>
+          <td className={tdAvg}>{(m.avgPondok ?? 0).toFixed(1)}</td>
+          <td className={tdTot}>{(m.total ?? 0).toFixed(1)}</td>
+          <td className={tdRank}>{rankByNisn[row.nisn] ?? ""}</td>
+          <td className={tdPrint}>
+            <button
+              onClick={() => printOne(row.nisn, "umum")}
+              className="px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
+              title="Cetak Rapor Umum"
+            >
+              Print
+            </button>
+          </td>
+        </tr>
+      );
+    })}
+</tbody>
                   </table>
                 </div>
               )}
@@ -434,36 +444,47 @@ export default function LegerKelasPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {tabelPondok.map((row, i) => {
-                        const m = metricsByNisn[row.nisn] || {};
-                        return (
-                          <tr key={`rp-${i}`} className={i % 2 ? "bg-white" : "bg-slate-50/50"}>
-                            <td className={`${tdBase} text-center`}>{row.no}</td>
-                            <td className={tdBase}>{row.nisn}</td>
-                            <td className={tdNama}>{row.nama}</td>
-                            {row.nilai.map((v, j) => (
-                              <td key={`rvp-${i}-${j}`} className={tdMapel}>
-                                {v}
-                              </td>
-                            ))}
-                            <td className={tdAbs}>{m.absensi || "0/0/0"}</td>
-                            <td className={tdAvg}>{(m.avgUmum ?? 0).toFixed(1)}</td>
-                            <td className={tdAvg}>{(m.avgPondok ?? 0).toFixed(1)}</td>
-                            <td className={tdTot}>{(m.total ?? 0).toFixed(1)}</td>
-                            <td className={tdRank}>{rankByNisn[row.nisn] ?? ""}</td>
-                            <td className={tdPrint}>
-                              <button
-                                onClick={() => printOne(row.nisn, "pondok")}
-                                className="px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
-                                title="Cetak Rapor Pondok"
-                              >
-                                Print
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
+  {tabelPondok
+    .slice()
+    .sort(
+      (a, b) =>
+        (rankByNisn[a.nisn] ?? 9999) - (rankByNisn[b.nisn] ?? 9999)
+    )
+    .map((row, i) => {
+      const m = metricsByNisn[row.nisn] || {};
+      return (
+        <tr
+          key={`rp-${i}`}
+          className={i % 2 ? "bg-white" : "bg-slate-50/50"}
+        >
+          {/* No ikut urutan ranking */}
+          <td className={`${tdBase} text-center`}>{i + 1}</td>
+          <td className={tdBase}>{row.nisn}</td>
+          <td className={tdNama}>{row.nama}</td>
+          {row.nilai.map((v, j) => (
+            <td key={`rvp-${i}-${j}`} className={tdMapel}>
+              {v}
+            </td>
+          ))}
+          <td className={tdAbs}>{m.absensi || "0/0/0"}</td>
+          <td className={tdAvg}>{(m.avgUmum ?? 0).toFixed(1)}</td>
+          <td className={tdAvg}>{(m.avgPondok ?? 0).toFixed(1)}</td>
+          <td className={tdTot}>{(m.total ?? 0).toFixed(1)}</td>
+          <td className={tdRank}>{rankByNisn[row.nisn] ?? ""}</td>
+          <td className={tdPrint}>
+            <button
+              onClick={() => printOne(row.nisn, "pondok")}
+              className="px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
+              title="Cetak Rapor Pondok"
+            >
+              Print
+            </button>
+          </td>
+        </tr>
+      );
+    })}
+</tbody>
+
                   </table>
                 </div>
               )}

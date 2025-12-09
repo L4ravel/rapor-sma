@@ -253,8 +253,8 @@ export default function InputNilaiUmumPage() {
 
         // update hanya field terkait mapel ini (nested + legacy flat)
         const updates = {
-          [`umum.${selectedMapelUmum}.nilai`] : numNilai,
-          [`umum.${selectedMapelUmum}.capaian`] : safeCapaian ?? "",
+          [`umum.${selectedMapelUmum}.nilai`]: numNilai,
+          [`umum.${selectedMapelUmum}.capaian`]: safeCapaian ?? "",
           [selectedMapelUmum]: numNilai, // legacy (kompatibel)
           [`capaian_${selectedMapelUmum}`]: safeCapaian ?? "", // legacy (kompatibel)
         };
@@ -290,8 +290,15 @@ export default function InputNilaiUmumPage() {
       })
       .map((r) => [r.nisn, r.nama_siswa, r.kelas, "", ""]);
 
+    // Tambahkan metadata supaya file terkunci ke mapel & kelas
+    const metaRows = [
+      ["MAPEL_UMUM", selectedMapelUmum || ""],
+      ["KELAS", selectedKelas || "ALL"],
+      [],
+    ];
+
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const ws = XLSX.utils.aoa_to_sheet([...metaRows, header, ...rows]);
     ws["!cols"] = [
       { wch: 16 },
       { wch: 28 },
@@ -368,11 +375,68 @@ export default function InputNilaiUmumPage() {
       return;
     }
 
-    // deteksi header
-    const header = rows[0].map((h) => String(h ?? "").trim());
+    // Baca metadata MAPEL_UMUM & KELAS (kalau ada) di beberapa baris awal
+    let mapelFromFile = "";
+    let kelasFromFile = "";
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const row = rows[i];
+      if (!row || row.length < 2) continue;
+      const key = String(row[0] ?? "").trim().toUpperCase();
+      const val = String(row[1] ?? "").trim();
+      if (key === "MAPEL_UMUM") {
+        mapelFromFile = val;
+      } else if (key === "KELAS") {
+        kelasFromFile = val;
+      }
+    }
+
+    // Cek kecocokan mapel
+    if (
+      mapelFromFile &&
+      selectedMapelUmum &&
+      mapelFromFile !== selectedMapelUmum
+    ) {
+      alert(
+        `File ini untuk mapel "${mapelFromFile}", sedangkan yang sedang dipilih adalah "${selectedMapelUmum}".\n\nImport dibatalkan agar tidak salah mapel.`
+      );
+      return;
+    }
+
+    // Cek kecocokan kelas (kecuali ALL)
+    if (
+      kelasFromFile &&
+      kelasFromFile !== "ALL" &&
+      selectedKelas &&
+      kelasFromFile !== selectedKelas
+    ) {
+      alert(
+        `File ini untuk kelas "${kelasFromFile}", sedangkan yang sedang dipilih adalah "${selectedKelas}".\n\nImport dibatalkan agar tidak salah kelas.`
+      );
+      return;
+    }
+
+    // Cari baris header yang berisi 'nisn'
+    let headerRowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      const headerNormLocal = row.map((h) => norm(h ?? ""));
+      if (headerNormLocal.includes("nisn")) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1) {
+      alert("Header wajib memuat kolom: nisn.");
+      return;
+    }
+
+    const header = rows[headerRowIndex].map((h) =>
+      String(h ?? "").trim()
+    );
     const headerNorm = header.map((h) => norm(h));
-    const hasHeader = headerNorm.includes("nisn");
-    const startIdx = hasHeader ? 1 : 0;
+    const startIdx = headerRowIndex + 1;
 
     // cari index kolom fleksibel
     const idxByName = (names) => {
@@ -480,7 +544,7 @@ export default function InputNilaiUmumPage() {
   /* ================== UI ================== */
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-0">
-    <div className="bg-white w-full min-h-screen px-3 py-4 md:px-6 md:py-8">
+      <div className="bg-white w-full min-h-screen px-3 py-4 md:px-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl md:text-3xl font-extrabold text-black">
             📘 Input Nilai — Mapel Umum
@@ -545,7 +609,7 @@ export default function InputNilaiUmumPage() {
                 <select
                   value={selectedKelas}
                   onChange={(e) => handleChangeKelas(e.target.value)}
-                  className="w-full rounded-md bg-white text-black px-3 py-2 text-xs border border-gray-300 focus:ring-2 focus:ring-purple-400"
+                  className="w-full rounded-md bg-white text.black px-3 py-2 text-xs border border-gray-300 focus:ring-2 focus:ring-purple-400"
                 >
                   {daftarKelas.map((k) => (
                     <option key={k} value={k}>
@@ -671,168 +735,180 @@ export default function InputNilaiUmumPage() {
             <div className="hidden md:block">
               <div className="overflow-x-auto rounded-2xl border border-gray-300/50 shadow-md">
                 <table className="w-full text-sm table-auto overflow-hidden rounded-2xl border border-gray-300/50">
-  <thead className="sticky top-0 z-10">
-    {/* Baris 1 */}
-    <tr className="bg-gradient-to-r from-indigo-200 to-purple-200 text-black text-xs">
-      <th className="p-1 w-[40px] border border-gray-300/50 text-center">
-        No
-      </th>
-      <th className="p-1 w-[80px] border border-gray-300/50 text-center">
-        NISN
-      </th>
-      <th className="p-1 w-[280px] border border-gray-300/50 text-center">
-        Nama
-      </th>
-      <th className="p-2 w-[60px] border border-gray-300/50 text-center">
-        Filter Kelas
-      </th>
-      <th
-        colSpan={2}
-        className="p-2 border border-gray-300/50 text-center"
-      >
-        INPUT NILAI MAPEL UMUM
-      </th>
-    </tr>
+                  <thead className="sticky top-0 z-10">
+                    {/* Baris 1 */}
+                    <tr className="bg-gradient-to-r from-indigo-200 to-purple-200 text-black text-xs">
+                      <th className="p-1 w-[40px] border border-gray-300/50 text-center">
+                        No
+                      </th>
+                      <th className="p-1 w-[80px] border border-gray-300/50 text-center">
+                        NISN
+                      </th>
+                      <th className="p-1 w-[280px] border border-gray-300/50 text-center">
+                        Nama
+                      </th>
+                      <th className="p-2 w-[60px] border border-gray-300/50 text-center">
+                        Filter Kelas
+                      </th>
+                      <th
+                        colSpan={2}
+                        className="p-2 border border-gray-300/50 text-center"
+                      >
+                        INPUT NILAI MAPEL UMUM
+                      </th>
+                    </tr>
 
-    {/* Baris 2 */}
-    <tr className="bg-gradient-to-r from-indigo-100 to-purple-100 text-black text-xs">
-      <th className="p-1 border border-gray-300/50" />
-      <th className="p-1 border border-gray-300/50" />
-      <th className="p-1 border border-gray-300/50" />
+                    {/* Baris 2 */}
+                    <tr className="bg-gradient-to-r from-indigo-100 to-purple-100 text-black text-xs">
+                      <th className="p-1 border border-gray-300/50" />
+                      <th className="p-1 border border-gray-300/50" />
+                      <th className="p-1 border border-gray-300/50" />
 
-      {/* Filter Kelas */}
-      <th className="p-2 w-[60px] border border-gray-300/50 text-center">
-        <select
-          value={selectedKelas}
-          onChange={(e) => handleChangeKelas(e.target.value)}
-          className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-purple-400"
-        >
-          {daftarKelas.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-      </th>
+                      {/* Filter Kelas */}
+                      <th className="p-2 w-[60px] border border-gray-300/50 text-center">
+                        <select
+                          value={selectedKelas}
+                          onChange={(e) =>
+                            handleChangeKelas(e.target.value)
+                          }
+                          className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-purple-400"
+                        >
+                          {daftarKelas.map((k) => (
+                            <option key={k} value={k}>
+                              {k}
+                            </option>
+                          ))}
+                        </select>
+                      </th>
 
-      {/* Dropdown Mapel umum - kolom NILAI (lebih kecil) */}
-      <th className="p-2 w-[80px] border border-gray-300/50 text-center">
-        <select
-          value={selectedMapelUmum}
-          onChange={(e) => handleChangeMapel(e.target.value)}
-          className="w-full rounded-md bg-white text-black px-2 py-1 text-[12px] focus:ring-2 focus:ring-purple-400"
-        >
-          {availableMapel.length === 0 ? (
-            <option value="">
-              {selectedKelas
-                ? `(tidak ada mapel untuk kelas ${selectedKelas})`
-                : "(tidak ada mapel)"}
-            </option>
-          ) : (
-            availableMapel.map((m) => (
-              <option key={m.id} value={m.nama}>
-                {m.nama}
-                {m.kelas && !selectedKelas ? ` - Kelas ${m.kelas}` : ""}
-              </option>
-            ))
-          )}
-        </select>
-      </th>
+                      {/* Dropdown Mapel umum - kolom NILAI (lebih kecil) */}
+                      <th className="p-2 w-[80px] border border-gray-300/50 text-center">
+                        <select
+                          value={selectedMapelUmum}
+                          onChange={(e) =>
+                            handleChangeMapel(e.target.value)
+                          }
+                          className="w-full rounded-md bg-white text-black px-2 py-1 text-[12px] focus:ring-2 focus:ring-purple-400"
+                        >
+                          {availableMapel.length === 0 ? (
+                            <option value="">
+                              {selectedKelas
+                                ? `(tidak ada mapel untuk kelas ${selectedKelas})`
+                                : "(tidak ada mapel)"}
+                            </option>
+                          ) : (
+                            availableMapel.map((m) => (
+                              <option key={m.id} value={m.nama}>
+                                {m.nama}
+                                {m.kelas && !selectedKelas
+                                  ? ` - Kelas ${m.kelas}`
+                                  : ""}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </th>
 
-      {/* Header Capaian Kompetensi - kolom lebar */}
-      <th className="p-2 w-[260px] border border-gray-300/50 text-center">
-        Capaian Kompetensi
-      </th>
-    </tr>
-  </thead>
+                      {/* Header Capaian Kompetensi - kolom lebar */}
+                      <th className="p-2 w-[260px] border border-gray-300/50 text-center">
+                        Capaian Kompetensi
+                      </th>
+                    </tr>
+                  </thead>
 
-  <tbody>
-    {visible.length === 0 ? (
-      <tr>
-        <td
-          colSpan={6}
-          className="p-8 text-center text-gray-500"
-        >
-          {availableMapel.length === 0
-            ? selectedKelas
-              ? `Tidak ada mapel umum untuk kelas ${selectedKelas}`
-              : "Tidak ada data mapel umum"
-            : "Tidak ada siswa yang sesuai dengan filter"}
-        </td>
-      </tr>
-    ) : (
-      visible.map((row, idx) => (
-        <tr
-          key={row.nisn || row.id || idx}
-          className={`transition hover:bg-purple-50 ${
-            idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-          }`}
-        >
-          <td className="p-1 text-center border border-gray-300/50 text-black">
-            {idx + 1}
-          </td>
-          <td
-            className="p-1 text-center border border-gray-300/50 text-black truncate"
-            title={row.nisn}
-          >
-            {row.nisn}
-          </td>
-          <td
-            className="p-1 border border-gray-300/50 text-black truncate"
-            title={row.nama_siswa}
-          >
-            {row.nama_siswa}
-          </td>
-          <td className="p-2 text-center border border-gray-300/50 text-black">
-            {row.kelas}
-          </td>
+                  <tbody>
+                    {visible.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="p-8 text-center text-gray-500"
+                        >
+                          {availableMapel.length === 0
+                            ? selectedKelas
+                              ? `Tidak ada mapel umum untuk kelas ${selectedKelas}`
+                              : "Tidak ada data mapel umum"
+                            : "Tidak ada siswa yang sesuai dengan filter"}
+                        </td>
+                      </tr>
+                    ) : (
+                      visible.map((row, idx) => (
+                        <tr
+                          key={row.nisn || row.id || idx}
+                          className={`transition hover:bg-purple-50 ${
+                            idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
+                        >
+                          <td className="p-1 text-center border border-gray-300/50 text-black">
+                            {idx + 1}
+                          </td>
+                          <td
+                            className="p-1 text-center border border-gray-300/50 text-black truncate"
+                            title={row.nisn}
+                          >
+                            {row.nisn}
+                          </td>
+                          <td
+                            className="p-1 border border-gray-300/50 text-black truncate"
+                            title={row.nama_siswa}
+                          >
+                            {row.nama_siswa}
+                          </td>
+                          <td className="p-2 text-center border border-gray-300/50 text-black">
+                            {row.kelas}
+                          </td>
 
-          {/* Kolom NILAI - sempit */}
-          <td className="p-2 w-[80px] text-center border border-gray-300/50 align-top">
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={row.nilaiUmum ?? ""}
-              onChange={(e) => {
-                const v = clampScore(e.target.value);
-                setDirty(true);
-                setData((prev) =>
-                  prev.map((r) =>
-                    r.nisn === row.nisn ? { ...r, nilaiUmum: v } : r
-                  )
-                );
-              }}
-              className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-purple-400 min-h-[60px]"
-              placeholder="0"
-            />
-          </td>
+                          {/* Kolom NILAI - sempit */}
+                          <td className="p-2 w-[80px] text-center border border-gray-300/50 align-top">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={row.nilaiUmum ?? ""}
+                              onChange={(e) => {
+                                const v = clampScore(e.target.value);
+                                setDirty(true);
+                                setData((prev) =>
+                                  prev.map((r) =>
+                                    r.nisn === row.nisn
+                                      ? { ...r, nilaiUmum: v }
+                                      : r
+                                  )
+                                );
+                              }}
+                              className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-purple-400 min-h-[60px]"
+                              placeholder="0"
+                            />
+                          </td>
 
-          {/* Kolom CAPAIAN - lebar */}
-          <td className="p-2 w-[260px] border border-gray-300/50 align-top">
-            <textarea
-              value={row.capaianUmum ?? ""}
-              onChange={(e) => {
-                const v = limitChars(e.target.value, 150);
-                setDirty(true);
-                setData((prev) =>
-                  prev.map((r) =>
-                    r.nisn === row.nisn ? { ...r, capaianUmum: v } : r
-                  )
-                );
-              }}
-              maxLength={150}
-              className="w-full h-[60px] border rounded-md px-2 py-2 text-sm text-black focus:ring-2 focus:ring-purple-400 shadow-sm resize-none"
-              placeholder="Tulis capaian kompetensi siswa (maks 150 karakter)"
-            />
-          </td>
-        </tr>
-      ))
-    )}
-  </tbody>
-</table>
-
+                          {/* Kolom CAPAIAN - lebar */}
+                          <td className="p-2 w-[260px] border border-gray-300/50 align-top">
+                            <textarea
+                              value={row.capaianUmum ?? ""}
+                              onChange={(e) => {
+                                const v = limitChars(
+                                  e.target.value,
+                                  150
+                                );
+                                setDirty(true);
+                                setData((prev) =>
+                                  prev.map((r) =>
+                                    r.nisn === row.nisn
+                                      ? { ...r, capaianUmum: v }
+                                      : r
+                                  )
+                                );
+                              }}
+                              maxLength={150}
+                              className="w-full h-[60px] border rounded-md px-2 py-2 text-sm text-black focus:ring-2 focus:ring-purple-400 shadow-sm resize-none"
+                              placeholder="Tulis capaian kompetensi siswa (maks 150 karakter)"
+                            />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>

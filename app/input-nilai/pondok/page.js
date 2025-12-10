@@ -230,10 +230,19 @@ export default function InputNilaiPondokPage() {
     const XLSX = XLSXRef.current;
 
     const header = ["nisn", "nama_siswa", "kelas", "nilai"];
-    const rows = (selectedKelas
-      ? data.filter((d) => d.kelas === selectedKelas)
-      : data
-    ).map((r) => [r.nisn, r.nama_siswa, r.kelas, ""]);
+    const source = selectedKelas
+  ? data.filter((d) => d.kelas === selectedKelas)
+  : data;
+
+const rows = [...source]
+  .sort((a, b) =>
+    String(a?.nama_siswa || "").localeCompare(
+      String(b?.nama_siswa || ""),
+      "id",
+      { sensitivity: "base" }
+    )
+  )
+  .map((r) => [r.nisn, r.nama_siswa, r.kelas, ""]);
 
     // Tambah metadata supaya file "terkunci" ke mapel & kelas
     const metaRows = [
@@ -264,15 +273,24 @@ export default function InputNilaiPondokPage() {
       "kelas",
       `nilai_${selectedMapelPondok}`,
     ];
-    const rows = (selectedKelas
-      ? data.filter((d) => d.kelas === selectedKelas)
-      : data
-    ).map((r) => [
-      String(r.nisn ?? ""),
-      r.nama_siswa ?? "",
-      r.kelas ?? "",
-      r.nilaiPondok ?? "",
-    ]);
+    const source = selectedKelas
+  ? data.filter((d) => d.kelas === selectedKelas)
+  : data;
+
+const rows = [...source]
+  .sort((a, b) =>
+    String(a?.nama_siswa || "").localeCompare(
+      String(b?.nama_siswa || ""),
+      "id",
+      { sensitivity: "base" }
+    )
+  )
+  .map((r) => [
+    String(r.nisn ?? ""),
+    r.nama_siswa ?? "",
+    r.kelas ?? "",
+    r.nilaiPondok ?? "",
+  ]);
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);

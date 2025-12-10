@@ -922,57 +922,56 @@ export default function CetakRaporPondok() {
         </table>
 
         {/* TANDA TANGAN */}
-        <table className="w-full text-[10px] leading-[1.1] mt-6 border-collapse">
-          <tbody>
-            <tr>
-              {/* Orang tua */}
-              <td className="w-1/3 border-0 align-top text-left">
-                Mengetahui
-                <br />
-                Orang Tua/Wali,
-                <br />
-                <div className="mt-10">......................</div>
-              </td>
+<table className="w-full text-[10px] leading-[1.1] mt-6 border-collapse">
+  <tbody>
+    <tr>
+      {/* Orang tua */}
+      <td className="w-1/3 align-top text-left">
+        Mengetahui
+        <br />
+        Orang Tua/Wali,
+        <div className="h-[70px]" />
+        <div>......................</div>
+      </td>
 
-              {/* Kepala sekolah */}
-              <td className="w-1/3 border-0 align-top text-center">
-                Mengetahui
-                <br />
-                Kepala Sekolah
-                <br />
-                <div className="mt-2 inline-block text-center">
-                  {ttdKepalaSekolahUrl && (
-                    <div className="mb-0.5 flex justify-center">
-                      <img
-                        src={ttdKepalaSekolahUrl}
-                        alt="Tanda tangan Kepala Sekolah"
-                        className="h-16 w-40 object-contain"
-                      />
-                    </div>
-                  )}
-                  <div className="font-bold underline">
-                    {formatNamaGelar(bio?.kepala_sekolah)}
-                  </div>
-                  <div className="text-left">NIP.</div>
-                </div>
-              </td>
+      {/* Kepala sekolah */}
+      <td className="w-1/3 align-top text-center">
+        Mengetahui
+        <br />
+        Kepala Sekolah
+        <div className="h-[70px] flex flex-col items-center justify-end">
+          {ttdKepalaSekolahUrl && (
+            <img
+              src={ttdKepalaSekolahUrl}
+              alt="TTD Kepala Sekolah"
+              className="h-14 w-40 object-contain mb-1"
+            />
+          )}
+        </div>
+        <div className="inline-block text-left">
+  <div className="font-bold underline">
+    {formatNamaGelar(bio?.kepala_sekolah)}
+  </div>
+  <div className="mt-0.5">NIP.</div>
+</div>
+        
+      </td>
 
-              {/* Wali kelas */}
-              <td className="w-1/3 border-0 align-top text-right">
-                {waktuPembagianRaport}
-                <br />
-                Wali Kelas,
-                <br />
-                <div className="mt-10 inline-block text-left">
-                  <div className="font-bold underline">
-                    {formatNamaGelar(wali?.nama_wali)}
-                  </div>
-                  <div>NIP.</div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      {/* Wali kelas */}
+      <td className="w-1/3 align-top text-right">
+        {waktuPembagianRaport}
+        <br />
+        Wali Kelas,
+        <div className="h-[70px]" />
+        <div className="font-bold underline">
+          {formatNamaGelar(wali?.nama_wali)}
+        </div>
+       
+      </td>
+    </tr>
+  </tbody>
+</table>
+
       </div>
 
       {/* Tombol Download (print) */}

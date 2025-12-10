@@ -383,7 +383,7 @@ export default function InputTahfidzPage() {
             </div>
 
             {/* MOBILE */}
-            <div className="block md.hidden">
+            <div className="block md:hidden">
               <div className="mb-4">
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Kelas

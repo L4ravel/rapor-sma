@@ -678,25 +678,26 @@ export default function InputNilaiUmumPage() {
                           Nilai
                         </span>
                         <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={1}
-                          value={row.nilaiUmum ?? ""}
-                          onChange={(e) => {
-                            const v = clampScore(e.target.value);
-                            setDirty(true);
-                            setData((prev) =>
-                              prev.map((r) =>
-                                r.nisn === row.nisn
-                                  ? { ...r, nilaiUmum: v }
-                                  : r
-                              )
-                            );
-                          }}
-                          className="w-full border rounded-md px-2 py-1.5 text-xs text-black text-center focus:ring-2 focus:ring-purple-400"
-                          placeholder="0"
-                        />
+  type="number"
+  min={0}
+  max={100}
+  step={1}
+  value={row.nilaiUmum ?? ""}
+  onChange={(e) => {
+    const v = clampScore(e.target.value);
+    setDirty(true);
+    setData((prev) =>
+      prev.map((r) =>
+        r.nisn === row.nisn
+          ? { ...r, nilaiUmum: v }
+          : r
+      )
+    );
+  }}
+  onWheel={(e) => e.currentTarget.blur()} // ⛔ cegah scroll ubah nilai
+  className="w-full border rounded-md px-2 py-1.5 text-xs text-black text-center focus:ring-2 focus:ring-purple-400"
+  placeholder="0"
+/>
                       </div>
 
                       {/* Capaian Kompetensi di bawah Nilai */}
@@ -859,26 +860,28 @@ export default function InputNilaiUmumPage() {
 
                           {/* Kolom NILAI - sempit */}
                           <td className="p-2 w-[80px] text-center border border-gray-300/50 align-top">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step={1}
-                              value={row.nilaiUmum ?? ""}
-                              onChange={(e) => {
-                                const v = clampScore(e.target.value);
-                                setDirty(true);
-                                setData((prev) =>
-                                  prev.map((r) =>
-                                    r.nisn === row.nisn
-                                      ? { ...r, nilaiUmum: v }
-                                      : r
-                                  )
-                                );
-                              }}
-                              className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-purple-400 min-h-[60px]"
-                              placeholder="0"
-                            />
+                           <input
+  type="number"
+  min={0}
+  max={100}
+  step={1}
+  value={row.nilaiUmum ?? ""}
+  onChange={(e) => {
+    const v = clampScore(e.target.value);
+    setDirty(true);
+    setData((prev) =>
+      prev.map((r) =>
+        r.nisn === row.nisn
+          ? { ...r, nilaiUmum: v }
+          : r
+      )
+    );
+  }}
+  onWheel={(e) => e.currentTarget.blur()} // ⛔ cegah scroll ubah nilai
+  className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-purple-400 min-h-[60px]"
+  placeholder="0"
+/>
+
                           </td>
 
                           {/* Kolom CAPAIAN - lebar */}

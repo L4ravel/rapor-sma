@@ -41,6 +41,8 @@ export default function AbsensiSiswaPage() {
           izin: r.izin ?? "",
           alpha: r.alpha ?? "",
           catatan_wali: r.catatan_wali ?? "",
+          // field poin rapor
+          poin: r.poin ?? "",
           // field lock rapor
           locked: r.locked ?? false,
         };
@@ -72,7 +74,7 @@ export default function AbsensiSiswaPage() {
     .sort((a, b) => (a.nama_siswa || "").localeCompare(b.nama_siswa || ""));
   const visible = filtered.slice(0, 50);
 
-  // Simpan semua (termasuk catatan_wali & locked) untuk kelas yang sedang dipilih
+  // Simpan semua (termasuk catatan_wali, poin & locked) untuk kelas yang sedang dipilih
   const handleSaveAll = async () => {
     try {
       setSaving(true);
@@ -88,6 +90,7 @@ export default function AbsensiSiswaPage() {
             izin: row.izin ?? "",
             alpha: row.alpha ?? "",
             catatan_wali: row.catatan_wali ?? "",
+            poin: row.poin ?? "",
             // simpan status lock rapor
             locked: row.locked ?? false,
           },
@@ -170,8 +173,8 @@ export default function AbsensiSiswaPage() {
                     </div>
                   </div>
 
-                  {/* Kolom absensi: S, I, A */}
-                  <div className="grid grid-cols-3 gap-2 mb-3">
+                  {/* Kolom absensi: S, I, A, Poin */}
+                  <div className="grid grid-cols-4 gap-2 mb-3">
                     {["sakit", "izin", "alpha"].map((field) => {
                       const label =
                         field === "sakit"
@@ -197,11 +200,33 @@ export default function AbsensiSiswaPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full border rounded-lg px-2 py-1.5 text-xs text-center text-slate-900 focus:ring-2 focus:ring-sky-400"
                           />
                         </div>
                       );
                     })}
+
+                    {/* Poin */}
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-slate-500 mb-1 text-center">
+                        Poin
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.poin ?? ""}
+                        onChange={(e) =>
+                          setData((prev) =>
+                            prev.map((r) =>
+                              r.id === row.id ? { ...r, poin: e.target.value } : r
+                            )
+                          )
+                        }
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className="w-full border rounded-lg px-2 py-1.5 text-xs text-center text-slate-900 focus:ring-2 focus:ring-sky-400"
+                      />
+                    </div>
                   </div>
 
                   {/* Catatan wali kelas (lebih tinggi) */}
@@ -215,9 +240,7 @@ export default function AbsensiSiswaPage() {
                       onChange={(e) =>
                         setData((prev) =>
                           prev.map((r) =>
-                            r.id === row.id
-                              ? { ...r, catatan_wali: e.target.value }
-                              : r
+                            r.id === row.id ? { ...r, catatan_wali: e.target.value } : r
                           )
                         )
                       }
@@ -232,17 +255,11 @@ export default function AbsensiSiswaPage() {
                       type="button"
                       onClick={() =>
                         setData((prev) =>
-                          prev.map((r) =>
-                            r.id === row.id
-                              ? { ...r, locked: !r.locked }
-                              : r
-                          )
+                          prev.map((r) => (r.id === row.id ? { ...r, locked: !r.locked } : r))
                         )
                       }
                       className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold border transition ${
-                        row.locked
-                          ? "bg-red-100 text-red-700 border-red-300"
-                          : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                        row.locked ? "bg-red-100 text-red-700 border-red-300" : "bg-emerald-100 text-emerald-700 border-emerald-300"
                       }`}
                     >
                       <span>{row.locked ? "🔒 Terkunci" : "🔓 Terbuka"}</span>
@@ -287,6 +304,10 @@ export default function AbsensiSiswaPage() {
                     <th className="p-1 w-[12rem] lg:w-[14rem] border border-gray-300/50 text-center text-[10px] whitespace-normal break-words">
                       Catatan Wali Kelas
                     </th>
+                    {/* Kolom Poin */}
+                    <th className="p-2 w-12 border border-gray-300/50 text-center text-[10px]">
+                      Poin
+                    </th>
                     {/* Kolom Lock */}
                     <th className="p-2 w-16 border border-gray-300/50 text-center text-[10px]">
                       Lock
@@ -298,9 +319,7 @@ export default function AbsensiSiswaPage() {
                   {visible.map((row, idx) => (
                     <tr
                       key={row.id}
-                      className={`transition hover:bg-sky-50 ${
-                        idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
+                      className={`transition hover:bg-sky-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
                     >
                       <td className="p-1 text-center border border-gray-300/50 text-black">
                         {idx + 1}
@@ -322,23 +341,17 @@ export default function AbsensiSiswaPage() {
                       </td>
 
                       {["sakit", "izin", "alpha"].map((field) => (
-                        <td
-                          key={field}
-                          className="p-2 w-12 text-center border border-gray-300/50 align-top"
-                        >
+                        <td key={field} className="p-2 w-12 text-center border border-gray-300/50 align-top">
                           <input
                             type="number"
                             min={0}
                             value={row[field] ?? ""}
                             onChange={(e) =>
                               setData((prev) =>
-                                prev.map((r) =>
-                                  r.id === row.id
-                                    ? { ...r, [field]: e.target.value }
-                                    : r
-                                )
+                                prev.map((r) => (r.id === row.id ? { ...r, [field]: e.target.value } : r))
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                           />
                         </td>
@@ -350,15 +363,27 @@ export default function AbsensiSiswaPage() {
                           value={row.catatan_wali ?? ""}
                           onChange={(e) =>
                             setData((prev) =>
-                              prev.map((r) =>
-                                r.id === row.id
-                                  ? { ...r, catatan_wali: e.target.value }
-                                  : r
-                              )
+                              prev.map((r) => (r.id === row.id ? { ...r, catatan_wali: e.target.value } : r))
                             )
                           }
                           className="w-full border rounded-md px-3 py-2 text-xs text-black focus:ring-2 focus:ring-indigo-400 resize-y"
                           placeholder="Catatan singkat perkembangan, karakter, atau saran untuk orang tua."
+                        />
+                      </td>
+
+                      {/* Kolom Poin */}
+                      <td className="p-2 w-12 text-center border border-gray-300/50 align-top">
+                        <input
+                          type="number"
+                          min={0}
+                          value={row.poin ?? ""}
+                          onChange={(e) =>
+                            setData((prev) =>
+                              prev.map((r) => (r.id === row.id ? { ...r, poin: e.target.value } : r))
+                            )
+                          }
+                          onWheel={(e) => e.currentTarget.blur()}
+                          className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                         />
                       </td>
 
@@ -368,17 +393,11 @@ export default function AbsensiSiswaPage() {
                           type="button"
                           onClick={() =>
                             setData((prev) =>
-                              prev.map((r) =>
-                                r.id === row.id
-                                  ? { ...r, locked: !r.locked }
-                                  : r
-                              )
+                              prev.map((r) => (r.id === row.id ? { ...r, locked: !r.locked } : r))
                             )
                           }
                           className={`inline-flex items-center justify-center gap-1 px-3 py-1 rounded-full text-[10px] font-semibold border transition ${
-                            row.locked
-                              ? "bg-red-100 text-red-700 border-red-300"
-                              : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                            row.locked ? "bg-red-100 text-red-700 border-red-300" : "bg-emerald-100 text-emerald-700 border-emerald-300"
                           }`}
                         >
                           {row.locked ? "🔒 Terkunci" : "🔓 Terbuka"}
@@ -389,10 +408,7 @@ export default function AbsensiSiswaPage() {
 
                   {visible.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={9}
-                        className="text-center p-4 text-gray-500"
-                      >
+                      <td colSpan={10} className="text-center p-4 text-gray-500">
                         Tidak ada data untuk kelas ini.
                       </td>
                     </tr>

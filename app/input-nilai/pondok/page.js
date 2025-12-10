@@ -631,25 +631,24 @@ export default function InputNilaiPondokPage() {
                           </td>
                           <td className="p-2 border border-gray-300/50 text-center align-top w-28">
                             <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step={1}
-                              value={row.nilaiPondok ?? ""}
-                              onChange={(e) => {
-                                const v = clampScore(e.target.value);
-                                setDirty(true);
-                                setData((prev) =>
-                                  prev.map((r) =>
-                                    r.nisn === row.nisn
-                                      ? { ...r, nilaiPondok: v }
-                                      : r
-                                  )
-                                );
-                              }}
-                              className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-emerald-400"
-                              placeholder="0"
-                            />
+  type="number"
+  min={0}
+  max={100}
+  step={1}
+  value={row.nilaiPondok ?? ""}
+  onChange={(e) => {
+    const v = clampScore(e.target.value);
+    setDirty(true);
+    setData((prev) =>
+      prev.map((r) =>
+        r.nisn === row.nisn ? { ...r, nilaiPondok: v } : r
+      )
+    );
+  }}
+  onWheel={(e) => e.currentTarget.blur()} // cegah scroll ubah nilai
+  className="w-full border rounded-md px-2 py-2 text-xs text.black text-center focus:ring-2 focus:ring-emerald-400"
+  placeholder="0"
+/>
                           </td>
                         </tr>
                       ))}
@@ -723,25 +722,24 @@ export default function InputNilaiPondokPage() {
                           {/* Nilai */}
                           <td className="p-2 w-32 text-center border border-gray-300/50 align-top">
                             <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step={1}
-                              value={row.nilaiPondok ?? ""}
-                              onChange={(e) => {
-                                const v = clampScore(e.target.value);
-                                setDirty(true);
-                                setData((prev) =>
-                                  prev.map((r) =>
-                                    r.nisn === row.nisn
-                                      ? { ...r, nilaiPondok: v }
-                                      : r
-                                  )
-                                );
-                              }}
-                              className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-emerald-400 min-h-[60px]"
-                              placeholder="0"
-                            />
+  type="number"
+  min={0}
+  max={100}
+  step={1}
+  value={row.nilaiPondok ?? ""}
+  onChange={(e) => {
+    const v = clampScore(e.target.value);
+    setDirty(true);
+    setData((prev) =>
+      prev.map((r) =>
+        r.nisn === row.nisn ? { ...r, nilaiPondok: v } : r
+      )
+    );
+  }}
+  onWheel={(e) => e.currentTarget.blur()} // cegah scroll ubah nilai
+  className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-emerald-400 min-h-[60px]"
+  placeholder="0"
+/>
                           </td>
                         </tr>
                       ))

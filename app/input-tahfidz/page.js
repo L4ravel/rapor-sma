@@ -140,20 +140,20 @@ export default function InputTahfidzPage() {
                 <table className="w-full text-sm table-fixed overflow-hidden rounded-2xl border border-gray-300/50">
                   {/* Atur lebar kolom di sini */}
                   <colgroup>
-                    <col className="w-[60px]" />   {/* No */}
-                    <col className="w-[130px]" />  {/* NISN */}
-                    <col className="w-[260px]" />  {/* Nama */}
-                    <col className="w-[120px]" />  {/* Kelas */}
-                    <col className="w-[90px]" />   {/* Total Juz */}
-                    <col className="w-[110px]" />  {/* Target */}
-                    <col className="w-[110px]" />  {/* Tercapai */}
-                    <col className="w-[430px]" />  {/* Keterangan (PALING BESAR) */}
-                    <col className="w-[80px]" />   {/* Nilai */}
+                    <col className="w-[60px]" />
+                    <col className="w-[130px]" />
+                    <col className="w-[260px]" />
+                    <col className="w-[120px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[430px]" />
+                    <col className="w-[80px]" />
                   </colgroup>
 
                   <thead className="sticky top-0 z-10">
                     {/* Baris 1 */}
-                    <tr className="bg-gradient-to-r from-sky-200 to-indigo-200 text-black text-xs">
+                    <tr className="bg-gradient.to-r from-sky-200 to-indigo-200 text-black text-xs">
                       <th
                         rowSpan={2}
                         className="p-1 border border-gray-300/50 text-center"
@@ -184,7 +184,7 @@ export default function InputTahfidzPage() {
                     </tr>
 
                     {/* Baris 2 */}
-                    <tr className="bg-gradient-to-r from-sky-100 to-indigo-100 text-black text-xs">
+                    <tr className="bg-gradient.to-r from-sky-100 to-indigo-100 text-black text-xs">
                       <th className="p-2 border border-gray-300/50 text-center">
                         <select
                           value={selectedKelas}
@@ -263,6 +263,7 @@ export default function InputTahfidzPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                             placeholder="0"
                           />
@@ -286,6 +287,7 @@ export default function InputTahfidzPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                             placeholder="0"
                           />
@@ -310,6 +312,7 @@ export default function InputTahfidzPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                             placeholder="0"
                           />
@@ -356,6 +359,7 @@ export default function InputTahfidzPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                             placeholder="0-100"
                           />
@@ -379,7 +383,7 @@ export default function InputTahfidzPage() {
             </div>
 
             {/* MOBILE */}
-            <div className="block md:hidden">
+            <div className="block md.hidden">
               <div className="mb-4">
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Kelas
@@ -453,6 +457,7 @@ export default function InputTahfidzPage() {
                                   )
                                 )
                               }
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
                               placeholder="0"
                             />
@@ -478,6 +483,7 @@ export default function InputTahfidzPage() {
                                   )
                                 )
                               }
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
                               placeholder="0"
                             />
@@ -504,6 +510,7 @@ export default function InputTahfidzPage() {
                                   )
                                 )
                               }
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
                               placeholder="0"
                             />
@@ -532,6 +539,7 @@ export default function InputTahfidzPage() {
                               )
                             )
                           }
+                          onWheel={(e) => e.currentTarget.blur()}
                           className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
                           placeholder="0-100"
                         />

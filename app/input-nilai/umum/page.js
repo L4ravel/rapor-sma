@@ -560,29 +560,29 @@ export default function InputNilaiUmumPage() {
           </button>
         </div>
 
-        {/* Toolbar atas */}
-        {/* Toolbar atas (REPLACE: tambahkan tombol Pengisian Capaian Kompetensi) */}
+{/* Toolbar atas */}
 <div className="flex flex-wrap items-center gap-2 mb-4">
   <button
     onClick={downloadTemplateXLSX}
     className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
   >
-    ⬇️ Template Excel
+    ⬇️ Download Template Excel
   </button>
 
   <button
     onClick={downloadCurrentXLSX}
     className="px-3 py-2 rounded-md text-sm bg-slate-700 text-white hover:bg-slate-600"
   >
-    ⬇️ Data Saat Ini 
+    ⬇️ Download Data Saat Ini (Excel)
   </button>
 
   <button
     onClick={triggerUpload}
     className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
   >
-    ⬆️ Uploud Data 
+    ⬆️ Import Data Excel
   </button>
+
   <input
     ref={fileInputRef}
     type="file"
@@ -591,11 +591,10 @@ export default function InputNilaiUmumPage() {
     onChange={(e) => onUploadXLSX(e.target.files?.[0])}
   />
 
-  {/* ===== NEW: tombol Panduan Pengisian Capaian Kompetensi ===== */}
+  {/* Tombol buka modal panduan */}
   <button
     onClick={() => setShowCapaianModal(true)}
     className="px-3 py-2 rounded-md text-sm bg-blue-600 text-white hover:bg-blue-700"
-    title="Cara mengisi kolom Capaian Kompetensi"
   >
     📋 Panduan Pengisian Capaian Kompetensi
   </button>
@@ -650,34 +649,30 @@ export default function InputNilaiUmumPage() {
       </ul>
 
       <p className="font-semibold">
-        2) Susun capaian kompetensi berdasarkan poin-poin tersebut:
-      </p>
+  2) Susun capaian kompetensi berdasarkan poin-poin tersebut:
+</p>
 
-      <p>
-        <strong>
-          “Siswa telah mampu memahami komponen hardware & software, mengoperasikan
-          rumus dasar Excel, membuat surat resmi sederhana, serta memahami prinsip
-          kerja jaringan LAN.”
-        </strong>
-      </p>
+<p>
+  <strong>
+    &quot;Siswa telah mampu memahami komponen hardware &amp; software, mengoperasikan
+    rumus dasar Excel, membuat surat resmi sederhana, serta memahami prinsip
+    kerja jaringan LAN.&quot;
+  </strong>
+</p>
 
-      <p className="text-xs text-slate-500">
-        Sesuaikan frasa dengan nilai. Jika nilainya rendah, gunakan kata seperti
-        “perlu peningkatan” atau “kurang memahami”.
-      </p>
+...
 
-      <p className="font-semibold">Contoh singkat (format):</p>
-      <ul className="list-disc ml-5 space-y-1">
-        <li>
-          Nilai 85 — "Telah mampu mengoperasikan rumus dasar & format sel pada Excel."
-        </li>
-        <li>
-          Nilai 70 — "Memahami konsep jaringan dan konfigurasi dasar, perlu praktik lebih lanjut."
-        </li>
-        <li>
-          Nilai 55 — "Kurang dalam pemahaman komponen hardware; perlu bimbingan."
-        </li>
-      </ul>
+<ul className="list-disc ml-5 space-y-1">
+  <li>
+    Nilai 85 — &quot;Telah mampu mengoperasikan rumus dasar &amp; format sel pada Excel.&quot;
+  </li>
+  <li>
+    Nilai 70 — &quot;Memahami konsep jaringan dan konfigurasi dasar, perlu praktik lebih lanjut.&quot;
+  </li>
+  <li>
+    Nilai 55 — &quot;Kurang dalam pemahaman komponen hardware; perlu bimbingan.&quot;
+  </li>
+</ul>
 
       <p className="text-xs text-slate-500">
         Tip: fokus pada hasil pembelajaran (apa yang bisa dilakukan siswa),

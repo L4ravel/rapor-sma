@@ -34,6 +34,33 @@ function appliesToClass(docData, kelas) {
     .filter(Boolean);
   return tokens.includes(String(kelas).trim());
 }
+
+// --- safeKey & readers (cek original name + safeKey UPPERCASE) ---
+const safeKey = (name) =>
+  String(name || "")
+    .toUpperCase()
+    .replace(/\//g, "_")
+    .replace(/\./g, "_")
+    .trim();
+
+// baca flat value: coba r[orig], lalu r[SAFE]
+const readFlat = (rObj, mapelName) => {
+  if (!rObj) return undefined;
+  if (rObj[mapelName] !== undefined) return rObj[mapelName];
+  const sk = safeKey(mapelName);
+  if (rObj[sk] !== undefined) return rObj[sk];
+  return undefined;
+};
+
+// baca nested pondok: coba r.pondok[orig] lalu r.pondok[SAFE]
+const readPondok = (rObj, mapelName) => {
+  if (!rObj) return undefined;
+  const pondok = rObj.pondok || {};
+  if (pondok[mapelName] !== undefined) return pondok[mapelName];
+  const sk = safeKey(mapelName);
+  return pondok[sk];
+};
+
 function toCSV(rows) {
   return rows
     .map((r) =>
@@ -153,28 +180,58 @@ export default function LegerKelasPage() {
 
   /* ===== Hitung tabel dasar & METRIK sinkron (absensi, rerata, total, rank) ===== */
   const { tabelUmum, tabelPondok, metricsByNisn, rankByNisn } = useMemo(() => {
-    const getAvg = (r, cols) => {
-      const vals = cols
-        .map((name) => r?.[name])
-        .filter((v) => nonEmpty(v))
-        .map((v) => toNum(v))
-        .filter((n) => Number.isFinite(n));
-      if (!vals.length) return 0;
-      return vals.reduce((a, b) => a + b, 0) / vals.length;
-    };
+    const getAvg = (r, cols, isPondok = false) => {
+  const vals = cols
+    .map((name) => {
+      if (isPondok) {
+        // coba nested pondok (obj or value), lalu flat
+        const nested = readPondok(r, name);
+        if (nested !== undefined) {
+          // nested bisa berupa { nilai: 88 } atau langsung angka/string
+          if (nested && nested.hasOwnProperty("nilai")) return toNum(nested.nilai);
+          if (nonEmpty(nested)) return toNum(nested);
+        }
+        const flat = readFlat(r, name);
+        return nonEmpty(flat) ? toNum(flat) : NaN;
+      } else {
+        const flat = readFlat(r, name);
+        return nonEmpty(flat) ? toNum(flat) : NaN;
+      }
+    })
+    .filter((n) => Number.isFinite(n));
+  if (!vals.length) return 0;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+};
 
-    const makeRow = (s, i, cols) => {
-      const r = raporMap[s.nisn] || {};
-      return {
-        no: i + 1,
-        nisn: s.nisn || "",
-        nama: s.nama_siswa || "",
-        nilai: cols.map((mName) => (nonEmpty(r[mName]) ? r[mName] : "")),
-      };
-    };
+    const makeRow = (s, i, cols, isPondok = false) => {
+  const r = raporMap[s.nisn] || {};
+  const nilaiArr = cols.map((mName) => {
+    if (isPondok) {
+      // cek nested pondok (orig / safe)
+      const nested = readPondok(r, mName);
+      if (nested !== undefined) {
+        if (nested && nested.hasOwnProperty("nilai")) return nested.nilai;
+        if (nonEmpty(nested)) return nested;
+      }
+      // fallback flat (orig / safe)
+      const flat = readFlat(r, mName);
+      return nonEmpty(flat) ? flat : "";
+    } else {
+      const flat = readFlat(r, mName);
+      return nonEmpty(flat) ? flat : "";
+    }
+  });
 
-    const tUmum = siswa.map((s, i) => makeRow(s, i, umumCols));
-    const tPondok = siswa.map((s, i) => makeRow(s, i, pondokCols));
+  return {
+    no: i + 1,
+    nisn: s.nisn || "",
+    nama: s.nama_siswa || "",
+    nilai: nilaiArr,
+  };
+};
+
+    const tUmum = siswa.map((s, i) => makeRow(s, i, umumCols, false));
+const tPondok = siswa.map((s, i) => makeRow(s, i, pondokCols, true));
 
     const metrics = {};
     siswa.forEach((s) => {
@@ -182,8 +239,8 @@ export default function LegerKelasPage() {
       const sakit = toNum(r.sakit);
       const izin  = toNum(r.izin);
       const alpha = toNum(r.alpha);
-      const avgUmum   = umumCols.length   ? getAvg(r, umumCols)   : 0;
-      const avgPondok = pondokCols.length ? getAvg(r, pondokCols) : 0;
+      const avgUmum   = umumCols.length   ? getAvg(r, umumCols, false) : 0;
+const avgPondok = pondokCols.length ? getAvg(r, pondokCols, true)  : 0;
 
       metrics[s.nisn] = {
         absensi: `${sakit}/${izin}/${alpha}`,

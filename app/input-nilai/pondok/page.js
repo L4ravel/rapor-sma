@@ -122,18 +122,35 @@ export default function InputNilaiPondokPage() {
 
       // gabungkan (nested + legacy fallback)
       const merged = siswa.map((s) => {
-        const r = rap[s.nisn] || {};
-        const nested = r?.pondok?.[selectedMapelPondok] || {};
-        const nilaiFlat = r[selectedMapelPondok];
+  const r = rap[s.nisn] || {};
 
-        return {
-          ...s,
-          id: s.id || s.nisn,
-          nilaiPondok: nested.nilai ?? nilaiFlat ?? "",
-          capaianPondok:
-            nested.capaian ?? r[`capaian_${selectedMapelPondok}`] ?? "",
-        };
-      });
+  // dua kemungkinan tempat penyimpanan:
+  // 1) legacy / flat: r["Tajwid/Tahsin"]  (nama mapel asli)
+  // 2) safe key: r["tajwid_tahsin"]
+  const keySafe = safeKey(selectedMapelPondok);
+
+  // nested pondok: coba original dulu, lalu safe key
+  const nested =
+    r?.pondok?.[selectedMapelPondok] ??
+    r?.pondok?.[keySafe] ??
+    {};
+
+  // flat nilai: coba original lalu safe
+  const nilaiFlat =
+    (r?.[selectedMapelPondok] ?? r?.[keySafe]);
+
+  // capaian: coba variants (legacy and safe)
+  const capaianFlat =
+    r?.[`capaian_${selectedMapelPondok}`] ??
+    r?.[`capaian_${keySafe}`];
+
+  return {
+    ...s,
+    id: s.id || s.nisn,
+    nilaiPondok: nested?.nilai ?? nilaiFlat ?? "",
+    capaianPondok: nested?.capaian ?? capaianFlat ?? "",
+  };
+});
 
       setData(merged);
     } catch (e) {

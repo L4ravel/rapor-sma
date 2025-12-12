@@ -25,8 +25,33 @@ const FIX_KEYS = [
   "fase",
   "catatan_wali",
   "locked",
-  "poin", // <-- agar tidak ikut terbaca sebagai mapel
+  "poin", 
 ];
+
+// === SAFE KEY HELPER (ubah "Tajwid/Tahsin" → "TAJWID_TAHSIN") ===
+const safeKey = (name) =>
+  String(name || "")
+    .toUpperCase()
+    .replace(/\//g, "_")
+    .replace(/\./g, "_")
+    .trim();
+
+// baca nilai flat (cek key asli + key aman)
+const readFlat = (rap, name) => {
+  if (!rap) return undefined;
+  if (rap[name] !== undefined) return rap[name];
+  const sk = safeKey(name);
+  return rap[sk];
+};
+
+// baca nilai nested pondok (cek nested asli + nested safe)
+const readPondok = (rap, name) => {
+  if (!rap?.pondok) return undefined;
+  const n1 = rap.pondok[name];
+  if (n1 !== undefined) return n1;
+  const sk = safeKey(name);
+  return rap.pondok[sk];
+};
 
 // Normalisasi nilai agar tidak me-render object langsung
 function normalizeNilai(v) {
@@ -259,21 +284,40 @@ export default function DetailRaporSiswa() {
   }, [nilaiKeys, namaUmumSet, rap, capaianMap, idxUmum]);
 
   // Rows PONDOK: hanya mapel yang ada di dataset pondok
-  const rowsPondok = useMemo(() => {
-    if (!nilaiKeys.length) return [];
-    const rows = nilaiKeys
-      .filter((k) => namaPondokSet.has(String(k).toLowerCase()))
-      .map((k) => ({ mapel: k, nilai: normalizeNilai(rap[k]) }))
-      .filter((r) => hasValue(r.nilai));
+const rowsPondok = useMemo(() => {
+  if (!dsPondok.length) return [];
 
-    rows.sort((a, b) => {
-      const ia = idxPondok.get(String(a.mapel).toLowerCase());
-      const ib = idxPondok.get(String(b.mapel).toLowerCase());
-      if (ia != null && ib != null && ia !== ib) return ia - ib;
-      return a.mapel.localeCompare(b.mapel, "id");
-    });
-    return rows;
-  }, [nilaiKeys, namaPondokSet, rap, idxPondok]);
+  const rows = dsPondok
+    .map((d) => {
+      const name = d.nama || "";
+      const sk = safeKey(name);
+
+      // 1️⃣ cek nested: rap.pondok[name] / rap.pondok[SAFE]
+      const nested = readPondok(rap, name);
+      let rawNilai =
+        nested?.nilai !== undefined ? nested.nilai : nested;
+
+      // 2️⃣ cek flat: rap[name] / rap[SAFE]
+      if (rawNilai === undefined) {
+        rawNilai = readFlat(rap, name);
+      }
+
+      const nilai = normalizeNilai(rawNilai);
+      return { mapel: name, nilai };
+    })
+    .filter((r) => hasValue(r.nilai));
+
+  // urut sesuai dataset mapel pondok
+  rows.sort((a, b) => {
+    const ia = idxPondok.get(String(a.mapel).toLowerCase());
+    const ib = idxPondok.get(String(b.mapel).toLowerCase());
+    if (ia != null && ib != null && ia !== ib) return ia - ib;
+    return a.mapel.localeCompare(b.mapel, "id");
+  });
+
+  return rows;
+}, [dsPondok, rap, idxPondok]);
+
 
   // ==== Setelah semua hooks dipanggil, baru conditional return ====
 

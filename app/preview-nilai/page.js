@@ -56,6 +56,33 @@ function appliesToClass(docData, kelas) {
   return tokens.includes(String(kelas).trim());
 }
 
+// --- Firestore-safe key (UPPERCASE, "/" -> "_") ---
+const safeKey = (name) =>
+  String(name || "")
+    .toUpperCase()
+    .replace(/\//g, "_")
+    .replace(/\./g, "_")
+    .trim();
+
+// baca flat value (cek original name lalu safeKey)
+const readFlat = (raporObj, mapelName) => {
+  if (!raporObj) return undefined;
+  const orig = raporObj[mapelName];
+  if (orig !== undefined) return orig;
+  const sk = safeKey(mapelName);
+  return raporObj[sk];
+};
+
+// baca nested pondok: raporObj.pondok[orig] atau raporObj.pondok[safeKey]
+const readPondok = (raporObj, mapelName) => {
+  if (!raporObj) return undefined;
+  const pondok = raporObj.pondok || {};
+  const n1 = pondok[mapelName];
+  if (n1 !== undefined) return n1;
+  const sk = safeKey(mapelName);
+  return pondok[sk];
+};
+
 export default function PreviewNilaiPage() {
   const [kelasList, setKelasList] = useState([]);
   const [selectedKelas, setSelectedKelas] = useState("");
@@ -130,40 +157,66 @@ export default function PreviewNilaiPage() {
 
     // khusus UMUM: nilai + capaian wajib terisi
     const calcUmum = (mapelName) => {
-      let filled = 0;
-      for (const s of siswaKelas) {
-        const r = raporMap[s.nisn] || {};
-        const nilai = r[mapelName];
-        // asumsi field capaian: "<namaMapel>_capaian" atau "capaian_<namaMapel>"
-        const capaian =
-          r[`${mapelName}_capaian`] ?? r[`capaian_${mapelName}`];
+  let filled = 0;
+  for (const s of siswaKelas) {
+    const r = raporMap[s.nisn] || {};
 
-        if (nonEmpty(nilai) && nonEmpty(capaian)) {
-          filled += 1;
-        }
+    // nilai: cek flat original lalu safe
+    const nilai = readFlat(r, mapelName);
+
+    // capaian: coba beberapa kandidat (original + safe)
+    const sk = safeKey(mapelName);
+    const capCandidates = [
+      `${mapelName}_capaian`,
+      `capaian_${mapelName}`,
+      `${sk}_CAPAIAN`,
+      `CAPAIAN_${sk}`,
+      `${sk}_capaian`,
+      `capaian_${sk}`,
+    ];
+    let capaian;
+    for (const cKey of capCandidates) {
+      if (r[cKey] !== undefined) {
+        capaian = r[cKey];
+        break;
       }
-      return {
-        mapel: mapelName,
-        total,
-        filled,
-        complete: total > 0 && filled === total,
-      };
-    };
+    }
+
+    if (nonEmpty(nilai) && nonEmpty(capaian)) {
+      filled += 1;
+    }
+  }
+  return {
+    mapel: mapelName,
+    total,
+    filled,
+    complete: total > 0 && filled === total,
+  };
+};
+
 
     // PONDOK: cukup nilai saja seperti sebelumnya
     const calcPondok = (mapelName) => {
-      let filled = 0;
-      for (const s of siswaKelas) {
-        const r = raporMap[s.nisn] || {};
-        if (nonEmpty(r[mapelName])) filled += 1;
-      }
-      return {
-        mapel: mapelName,
-        total,
-        filled,
-        complete: total > 0 && filled === total,
-      };
-    };
+  let filled = 0;
+  for (const s of siswaKelas) {
+    const r = raporMap[s.nisn] || {};
+
+    // cek nested pondok (original atau safe)
+    const nested = readPondok(r, mapelName);
+    const nilaiNested = nested?.nilai;
+
+    // cek flat alternatif (original or safe)
+    const nilaiFlat = readFlat(r, mapelName);
+
+    if (nonEmpty(nilaiNested) || nonEmpty(nilaiFlat)) filled += 1;
+  }
+  return {
+    mapel: mapelName,
+    total,
+    filled,
+    complete: total > 0 && filled === total,
+  };
+};
 
     const umumKelasDocs = mapelUmum.filter((m) =>
       appliesToClass(m, selectedKelas)

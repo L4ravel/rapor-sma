@@ -45,6 +45,13 @@ const FIX_KEYS = [
   "updatedAt",
 ];
 
+const safeKey = (name) =>
+  String(name || "")
+    .toUpperCase()
+    .replace(/\//g, "_")
+    .replace(/\./g, "_")
+    .trim();
+
 // Normalisasi nilai → angka murni (untuk total/rata2)
 function normalizeToNumber(v) {
   if (v === null || v === undefined) return NaN;
@@ -268,53 +275,71 @@ export default function CetakRaporPondok() {
 
   /* ===================== Derivasi Data ===================== */
 
-  const { biodata, rowsPondok } = useMemo(() => {
-    if (!rapor) return { biodata: {}, rowsPondok: [] };
+const { biodata, rowsPondok } = useMemo(() => {
+  if (!rapor) return { biodata: {}, rowsPondok: [] };
 
-    const allKeys = Object.keys(rapor || {});
-    const isUmum = (k) =>
-      MAPEL_UMUM.some(
-        (u) => u.toLowerCase() === String(k).toLowerCase()
-      );
-    const nilaiKeys = allKeys.filter(
-      (k) => !FIX_KEYS.includes(k) && !String(k).startsWith("capaian_")
-    );
+  // index dataset untuk ordering
+  const idxPondok = new Map();
+  datasetPondok.forEach((d, i) =>
+    idxPondok.set(String(d.nama || "").toLowerCase(), i)
+  );
 
-    const namaPondokSet = new Set(
-      datasetPondok.map((d) => String(d.nama || "").toLowerCase())
-    );
-    const idxPondok = new Map();
-    datasetPondok.forEach((d, i) =>
-      idxPondok.set(String(d.nama || "").toLowerCase(), i)
-    );
+  // Untuk setiap mapel di dataset_mapel_pondok (urutan natural dataset),
+  // cari nilai di beberapa tempat:
+  // 1) nested: rapor.pondok[orig]?.nilai  OR rapor.pondok[safe]?.nilai
+  // 2) flat: rapor[orig] OR rapor[safe]
+  const rows = (datasetPondok || [])
+    .map((d) => {
+      const orig = d.nama || "";
+      const sk = safeKey(orig);
 
-    const rows = nilaiKeys
-      .filter(
-        (k) => !isUmum(k) && namaPondokSet.has(String(k).toLowerCase())
-      )
-      .map((k) => {
-        const nilaiNum = normalizeToNumber(rapor[k]);
-        return { mapel: k, nilai: nilaiNum };
-      })
-      .filter((r) => !isNaN(r.nilai));
+      let rawVal;
 
-    rows.sort((a, b) => {
-      const ia = idxPondok.get(String(a.mapel).toLowerCase());
-      const ib = idxPondok.get(String(b.mapel).toLowerCase());
-      if (ia != null && ib != null && ia !== ib) return ia - ib;
-      return String(a.mapel).localeCompare(String(b.mapel), "id");
-    });
+      // nested pondok
+      if (rapor?.pondok) {
+        const nOrig = rapor.pondok[orig];
+        const nSafe = rapor.pondok[sk];
+        if (nOrig !== undefined && nOrig != null) {
+          // nested could be object { nilai: 88 } or plain value
+          rawVal = nOrig?.nilai ?? nOrig;
+        } else if (nSafe !== undefined && nSafe != null) {
+          rawVal = nSafe?.nilai ?? nSafe;
+        }
+      }
 
-    const bio = {
-      nisn: rapor.nisn || "-",
-      nama: rapor.nama_siswa || "-",
-      kelas: rapor.kelas || "-",
-      semester: rapor.semester || "-",
-      tahun: rapor.tahun_pelajaran || "-",
-    };
+      // flat fallback
+      if (rawVal === undefined) {
+        if (rapor[orig] !== undefined && rapor[orig] !== null) {
+          rawVal = rapor[orig];
+        } else if (rapor[sk] !== undefined && rapor[sk] !== null) {
+          rawVal = rapor[sk];
+        }
+      }
 
-    return { biodata: bio, rowsPondok: rows };
-  }, [rapor, datasetPondok]);
+      const nilaiNum = normalizeToNumber(rawVal);
+      return { mapel: orig, nilai: nilaiNum };
+    })
+    // hanya tampilkan yg punya nilai valid (sesuai alur lama)
+    .filter((r) => !isNaN(r.nilai));
+
+  // jaga urutan sesuai dataset (dataset sudah dipetakan sehingga map preserve order)
+  rows.sort((a, b) => {
+    const ia = idxPondok.get(String(a.mapel).toLowerCase());
+    const ib = idxPondok.get(String(b.mapel).toLowerCase());
+    if (ia != null && ib != null && ia !== ib) return ia - ib;
+    return String(a.mapel).localeCompare(String(b.mapel), "id");
+  });
+
+  const bio = {
+    nisn: rapor.nisn || "-",
+    nama: rapor.nama_siswa || "-",
+    kelas: rapor.kelas || "-",
+    semester: rapor.semester || "-",
+    tahun: rapor.tahun_pelajaran || "-",
+  };
+
+  return { biodata: bio, rowsPondok: rows };
+}, [rapor, datasetPondok]);
 
   if (loading) return <p className="p-4 text-black">⏳ Memuat...</p>;
   if (!rapor)

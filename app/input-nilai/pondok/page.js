@@ -27,6 +27,13 @@ const limitChars = (text, max = 150) =>
   !text ? "" : String(text).slice(0, max);
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 
+const safeKey = (name) => {
+  return String(name)
+    .replace(/\//g, "_")
+    .replace(/\./g, "_")
+    .trim();
+};
+
 /* ================ Page ================ */
 export default function InputNilaiPondokPage() {
   const router = useRouter();
@@ -483,11 +490,12 @@ const rows = [...source]
           { merge: true }
         );
 
-        // nested + legacy (kompatibel dengan versi lama)
-        const updates = {
-          [`pondok.${selectedMapelPondok}.nilai`]: numNilai,
-          [selectedMapelPondok]: numNilai,
-        };
+        const key = safeKey(selectedMapelPondok);
+
+const updates = {
+  [`pondok.${key}.nilai`]: numNilai,
+  [key]: numNilai,
+};
 
         await updateDoc(ref, updates);
       }

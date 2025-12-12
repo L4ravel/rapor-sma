@@ -38,6 +38,7 @@ export default function InputNilaiUmumPage() {
   const [daftarKelas, setDaftarKelas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showCapaianModal, setShowCapaianModal] = useState(false);
 
   // mapel umum dari collection mapel_umum
   const [mapelUmumList, setMapelUmumList] = useState([]);
@@ -560,40 +561,152 @@ export default function InputNilaiUmumPage() {
         </div>
 
         {/* Toolbar atas */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <button
-            onClick={downloadTemplateXLSX}
-            className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
-          >
-            ⬇️ Download Template Excel
-          </button>
-          <button
-            onClick={downloadCurrentXLSX}
-            className="px-3 py-2 rounded-md text-sm bg-slate-700 text-white hover:bg-slate-600"
-          >
-            ⬇️ Download Data Saat Ini (Excel)
-          </button>
-          <button
-            onClick={triggerUpload}
-            className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
-          >
-            ⬆️ Import Data Excel
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-            className="hidden"
-            onChange={(e) => onUploadXLSX(e.target.files?.[0])}
-          />
+        {/* Toolbar atas (REPLACE: tambahkan tombol Pengisian Capaian Kompetensi) */}
+<div className="flex flex-wrap items-center gap-2 mb-4">
+  <button
+    onClick={downloadTemplateXLSX}
+    className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
+  >
+    ⬇️ Template Excel
+  </button>
 
-          {importInfo.rows > 0 && (
-            <span className="ml-auto text-sm text-slate-600">
-              Preview: {importInfo.rows} baris • Update: {importInfo.updated} •
-              Di-skip (NISN baru): {importInfo.skippedNew}
-            </span>
-          )}
-        </div>
+  <button
+    onClick={downloadCurrentXLSX}
+    className="px-3 py-2 rounded-md text-sm bg-slate-700 text-white hover:bg-slate-600"
+  >
+    ⬇️ Data Saat Ini 
+  </button>
+
+  <button
+    onClick={triggerUpload}
+    className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
+  >
+    ⬆️ Uploud Data 
+  </button>
+  <input
+    ref={fileInputRef}
+    type="file"
+    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+    className="hidden"
+    onChange={(e) => onUploadXLSX(e.target.files?.[0])}
+  />
+
+  {/* ===== NEW: tombol Panduan Pengisian Capaian Kompetensi ===== */}
+  <button
+    onClick={() => setShowCapaianModal(true)}
+    className="px-3 py-2 rounded-md text-sm bg-blue-600 text-white hover:bg-blue-700"
+    title="Cara mengisi kolom Capaian Kompetensi"
+  >
+    📋 Panduan Pengisian Capaian Kompetensi
+  </button>
+
+  {importInfo.rows > 0 && (
+    <span className="ml-auto text-sm text-slate-600">
+      Preview: {importInfo.rows} baris • Update: {importInfo.updated} •
+      Di-skip (NISN baru): {importInfo.skippedNew}
+    </span>
+  )}
+</div>
+
+{showCapaianModal && (
+  <div
+    className="fixed inset-0 z-50 bg-white overflow-y-auto"
+    aria-modal="true"
+    role="dialog"
+  >
+    {/* HEADER */}
+    <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
+      <h2 className="text-lg font-semibold text-black">
+        📋 Panduan: Pengisian Capaian Kompetensi
+      </h2>
+
+      <button
+        onClick={() => setShowCapaianModal(false)}
+        className="p-2 rounded-md hover:bg-slate-100 text-slate-600"
+        aria-label="Tutup panduan"
+        type="button"
+      >
+        ✖
+      </button>
+    </div>
+
+    {/* BODY */}
+    <div className="px-4 py-4 text-sm text-slate-700 space-y-4 max-w-3xl mx-auto">
+
+      <p>
+        Isi <strong>kolom Capaian Kompetensi</strong> dengan ringkasan singkat
+        yang menggambarkan apa yang telah dikuasai siswa berdasarkan materi yang
+        dipelajari pada semester tersebut.
+      </p>
+
+      <p className="font-semibold">
+        1) Identifikasi materi yang sudah dipelajari siswa: (contoh Mapel TIK)
+      </p>
+      <ul className="list-disc ml-5 space-y-1">
+        <li>Memahami komponen hardware & software sistem komputer</li>
+        <li>Mengoperasikan dasar-dasar Excel termasuk rumus sederhana</li>
+        <li>Membuat surat resmi (format dasar dan struktur)</li>
+        <li>Memahami prinsip kerja jaringan (LAN, topologi dasar)</li>
+      </ul>
+
+      <p className="font-semibold">
+        2) Susun capaian kompetensi berdasarkan poin-poin tersebut:
+      </p>
+
+      <p>
+        <strong>
+          “Siswa telah mampu memahami komponen hardware & software, mengoperasikan
+          rumus dasar Excel, membuat surat resmi sederhana, serta memahami prinsip
+          kerja jaringan LAN.”
+        </strong>
+      </p>
+
+      <p className="text-xs text-slate-500">
+        Sesuaikan frasa dengan nilai. Jika nilainya rendah, gunakan kata seperti
+        “perlu peningkatan” atau “kurang memahami”.
+      </p>
+
+      <p className="font-semibold">Contoh singkat (format):</p>
+      <ul className="list-disc ml-5 space-y-1">
+        <li>
+          Nilai 85 — "Telah mampu mengoperasikan rumus dasar & format sel pada Excel."
+        </li>
+        <li>
+          Nilai 70 — "Memahami konsep jaringan dan konfigurasi dasar, perlu praktik lebih lanjut."
+        </li>
+        <li>
+          Nilai 55 — "Kurang dalam pemahaman komponen hardware; perlu bimbingan."
+        </li>
+      </ul>
+
+      <p className="text-xs text-slate-500">
+        Tip: fokus pada hasil pembelajaran (apa yang bisa dilakukan siswa),
+        bukan aktivitas pembelajaran (apa yang dilakukan guru).
+      </p>
+
+      {/* FOOTER BUTTONS */}
+      <div className="mt-6 flex flex-col sm:flex-row sm:justify-end gap-2">
+        <button
+          onClick={() => setShowCapaianModal(false)}
+          className="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 text-white text-sm hover:bg-slate-700"
+        >
+          Tutup
+        </button>
+
+        <button
+          onClick={() => {
+            setShowCapaianModal(false);
+          }}
+          className="w-full sm:w-auto px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+        >
+          Mengerti
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
 
         {/* Tabel / List */}
         {loading ? (
@@ -609,7 +722,7 @@ export default function InputNilaiUmumPage() {
                 <select
                   value={selectedKelas}
                   onChange={(e) => handleChangeKelas(e.target.value)}
-                  className="w-full rounded-md bg-white text.black px-3 py-2 text-xs border border-gray-300 focus:ring-2 focus:ring-purple-400"
+                  className="w-full rounded-md bg-white text-black px-3 py-2 text-xs border border-gray-300 focus:ring-2 focus:ring-purple-400"
                 >
                   {daftarKelas.map((k) => (
                     <option key={k} value={k}>

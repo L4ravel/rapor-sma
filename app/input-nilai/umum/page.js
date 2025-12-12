@@ -566,21 +566,21 @@ export default function InputNilaiUmumPage() {
     onClick={downloadTemplateXLSX}
     className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
   >
-    ⬇️ Download Template Excel
+    ⬇️ Template Excel
   </button>
 
   <button
     onClick={downloadCurrentXLSX}
     className="px-3 py-2 rounded-md text-sm bg-slate-700 text-white hover:bg-slate-600"
   >
-    ⬇️ Download Data Saat Ini (Excel)
+    ⬇️ Data Saat Ini 
   </button>
 
   <button
     onClick={triggerUpload}
     className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
   >
-    ⬆️ Import Data Excel
+    ⬆️ Uploud Data 
   </button>
 
   <input

@@ -644,7 +644,7 @@ const updates = {
                     {emptyMessage}
                   </div>
                 ) : (
-                  <table className="w-full text-sm table-fixed">
+                  <table className="w-full text-sm table-fixed text-black">
                     <thead className="bg-gradient-to-r from-emerald-200 to-teal-200 text-black text-xs">
                       <tr>
                         <th className="p-2 border border-gray-300/50 text-left">

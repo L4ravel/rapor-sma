@@ -89,6 +89,7 @@ const CATEGORIES = [
     description: "Pengisian nilai rapor.",
     actions: [
       { href: "/input-nilai/pondok", label: "Input Nilai Pondok", icon: "pencil" },
+      { href: "/input-tahfidz", label: "Input Nilai Tahfidz", icon: "book" },
       { href: "/input-nilai/umum", label: "Input Nilai Umum", icon: "pencil" },
     ],
   },

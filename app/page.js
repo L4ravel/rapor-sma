@@ -77,8 +77,7 @@ const CATEGORIES = [
     label: "Wali Kelas",
     description: "Menu harian wali kelas.",
     actions: [
-      { href: "/absensi-siswa", label: "Absensi Siswa", icon: "calendar" },
-      { href: "/input-tahfidz", label: "Input Nilai Tahfidz", icon: "book" },
+      { href: "/absensi-siswa", label: "Absensi Siswa", icon: "calendar" },      
       { href: "/siswa", label: "Lihat Rapor", icon: "cap" },
       { href: "/preview-nilai", label: "Cetak Rapor", icon: "chart" },
     ],

@@ -307,14 +307,22 @@ const { biodata, rowsPondok } = useMemo(() => {
         }
       }
 
-      // flat fallback
-      if (rawVal === undefined) {
-        if (rapor[orig] !== undefined && rapor[orig] !== null) {
-          rawVal = rapor[orig];
-        } else if (rapor[sk] !== undefined && rapor[sk] !== null) {
-          rawVal = rapor[sk];
-        }
-      }
+   
+      // flat fallback (CASE-INSENSITIVE)
+if (rawVal === undefined) {
+  if (rapor[orig] !== undefined && rapor[orig] !== null) {
+    rawVal = rapor[orig];
+  } else if (rapor[sk] !== undefined && rapor[sk] !== null) {
+    rawVal = rapor[sk];
+  } else {
+    // 🔑 kunci utama: cari key tanpa peduli besar-kecil
+    const foundKey = Object.keys(rapor).find(
+      (k) => k.toUpperCase() === sk
+    );
+    if (foundKey) rawVal = rapor[foundKey];
+  }
+}
+
 
       const nilaiNum = normalizeToNumber(rawVal);
       return { mapel: orig, nilai: nilaiNum };
@@ -401,7 +409,7 @@ const { biodata, rowsPondok } = useMemo(() => {
       {/* Wrapper konten:
           - di layar: max-w-900 dan center
           - di print: full width (max-w-none) */}
-      <div className="w-full max-w-[900px] mx-auto p-4 pb-8 print:max-w-none print:p-0">
+      <div className="w-full max-w-[900px] mx-auto p-4 pb-8 print:max-w-none print:pt-[10mm]">
         {/* KOP */}
         <div className="text-center mb-0">
           <img

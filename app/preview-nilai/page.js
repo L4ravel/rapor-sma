@@ -67,21 +67,40 @@ const safeKey = (name) =>
 // baca flat value (cek original name lalu safeKey)
 const readFlat = (raporObj, mapelName) => {
   if (!raporObj) return undefined;
-  const orig = raporObj[mapelName];
-  if (orig !== undefined) return orig;
-  const sk = safeKey(mapelName);
-  return raporObj[sk];
+
+  const clean = String(mapelName || "").trim();
+  const sk = safeKey(clean);
+
+  // 1. exact
+  if (raporObj[clean] !== undefined) return raporObj[clean];
+
+  // 2. SAFEKEY (UPPERCASE)
+  if (raporObj[sk] !== undefined) return raporObj[sk];
+
+  // 3. CASE-INSENSITIVE FALLBACK (INI KUNCINYA)
+  const foundKey = Object.keys(raporObj).find(
+    (k) => k.toUpperCase() === sk
+  );
+
+  return foundKey ? raporObj[foundKey] : undefined;
 };
+
 
 // baca nested pondok: raporObj.pondok[orig] atau raporObj.pondok[safeKey]
 const readPondok = (raporObj, mapelName) => {
   if (!raporObj) return undefined;
   const pondok = raporObj.pondok || {};
-  const n1 = pondok[mapelName];
-  if (n1 !== undefined) return n1;
-  const sk = safeKey(mapelName);
-  return pondok[sk];
+
+  const cleanName = String(mapelName || "").trim();
+  const sk = safeKey(cleanName);
+
+  return (
+    pondok[cleanName] ??
+    pondok[sk]
+  );
 };
+
+
 
 export default function PreviewNilaiPage() {
   const [kelasList, setKelasList] = useState([]);
@@ -182,7 +201,12 @@ const { rowsUmum, rowsPondok } = useMemo(() => {
           const r = raporMap[s.nisn] || {};
           const nested = readPondok(r, m.nama);
           const flat = readFlat(r, m.nama);
-          if (nonEmpty(nested?.nilai) || nonEmpty(flat)) filled++;
+          if (
+  nonEmpty(nested?.nilai) ||
+  (typeof flat === "number" || nonEmpty(flat))
+) {
+  filled++;
+}
         });
 
         if (filled < siswaList.length) {
@@ -281,7 +305,12 @@ const rowsPondok = mapelPondok
       const r = raporMap[s.nisn] || {};
       const nested = readPondok(r, m.nama);
       const flat = readFlat(r, m.nama);
-      if (nonEmpty(nested?.nilai) || nonEmpty(flat)) filled++;
+     if (
+  nonEmpty(nested?.nilai) ||
+  (typeof flat === "number" || nonEmpty(flat))
+) {
+  filled++;
+}
     });
 
     return {

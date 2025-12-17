@@ -46,11 +46,24 @@ const safeKey = (name) =>
 // baca flat value: coba r[orig], lalu r[SAFE]
 const readFlat = (rObj, mapelName) => {
   if (!rObj) return undefined;
-  if (rObj[mapelName] !== undefined) return rObj[mapelName];
-  const sk = safeKey(mapelName);
+
+  const clean = String(mapelName || "").trim();
+  const sk = safeKey(clean);
+
+  // 1. exact
+  if (rObj[clean] !== undefined) return rObj[clean];
+
+  // 2. UPPERCASE safeKey
   if (rObj[sk] !== undefined) return rObj[sk];
-  return undefined;
+
+  // 3. CASE-INSENSITIVE fallback (INI KUNCI NYA)
+  const foundKey = Object.keys(rObj).find(
+    (k) => k.toUpperCase() === sk
+  );
+
+  return foundKey ? rObj[foundKey] : undefined;
 };
+
 
 // baca nested pondok: coba r.pondok[orig] lalu r.pondok[SAFE]
 const readPondok = (rObj, mapelName) => {

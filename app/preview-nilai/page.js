@@ -138,8 +138,13 @@ export default function PreviewNilaiPage() {
           id: d.id,
           ...(d.data() || {}),
         }));
-        const siswaKls = siswaAll.filter((s) => s.kelas === selectedKelas);
-        setSiswaKelas(siswaKls);
+       const siswaKls =
+  selectedKelas === "__ALL__"
+    ? siswaAll
+    : siswaAll.filter((s) => s.kelas === selectedKelas);
+
+setSiswaKelas(siswaKls);
+
 
         const rSnap = await getDocs(collection(db, "raport"));
         const map = {};
@@ -152,89 +157,145 @@ export default function PreviewNilaiPage() {
   }, [selectedKelas]);
 
   /* ---------- Filter mapel per kelas & hitung status ---------- */
-  const { rowsUmum, rowsPondok } = useMemo(() => {
-    const total = siswaKelas.length;
+const { rowsUmum, rowsPondok } = useMemo(() => {
+  // MODE SEMUA KELAS
+  if (selectedKelas === "__ALL__") {
+    const resultPondok = new Map(); // mapel -> Set(kelas)
+    const resultUmum = new Map();
 
-    // khusus UMUM: nilai + capaian wajib terisi
-    const calcUmum = (mapelName) => {
-  let filled = 0;
-  for (const s of siswaKelas) {
-    const r = raporMap[s.nisn] || {};
+    kelasList.forEach((kelas) => {
+      const siswaDiKelas = Object.values(raporMap)
+        .filter((_, idx) => true); // raporMap sudah global
 
-    // nilai: cek flat original lalu safe
-    const nilai = readFlat(r, mapelName);
+      const siswaKls = Object.values(raporMap).filter(
+        (_, i) => true
+      );
 
-    // capaian: coba beberapa kandidat (original + safe)
-    const sk = safeKey(mapelName);
-    const capCandidates = [
-      `${mapelName}_capaian`,
-      `capaian_${mapelName}`,
-      `${sk}_CAPAIAN`,
-      `CAPAIAN_${sk}`,
-      `${sk}_capaian`,
-      `capaian_${sk}`,
-    ];
-    let capaian;
-    for (const cKey of capCandidates) {
-      if (r[cKey] !== undefined) {
-        capaian = r[cKey];
-        break;
+      const siswaList = siswaKelas.filter((s) => s.kelas === kelas);
+
+      // === PONDOK ===
+      mapelPondok
+  .filter((m) => appliesToClass(m, kelas))
+  .forEach((m) => {
+        let filled = 0;
+        siswaList.forEach((s) => {
+          const r = raporMap[s.nisn] || {};
+          const nested = readPondok(r, m.nama);
+          const flat = readFlat(r, m.nama);
+          if (nonEmpty(nested?.nilai) || nonEmpty(flat)) filled++;
+        });
+
+        if (filled < siswaList.length) {
+          if (!resultPondok.has(m.nama))
+            resultPondok.set(m.nama, new Set());
+          resultPondok.get(m.nama).add(kelas);
+        }
+      });
+
+      // === UMUM ===
+      mapelUmum
+  .filter((m) => appliesToClass(m, kelas))
+  .forEach((m) => {
+        let filled = 0;
+        siswaList.forEach((s) => {
+          const r = raporMap[s.nisn] || {};
+          const nilai = readFlat(r, m.nama);
+          if (nonEmpty(nilai)) filled++;
+        });
+
+        if (filled < siswaList.length) {
+          if (!resultUmum.has(m.nama))
+            resultUmum.set(m.nama, new Set());
+          resultUmum.get(m.nama).add(kelas);
+        }
+      });
+    });
+
+    return {
+      rowsPondok: Array.from(resultPondok.entries()).map(
+        ([mapel, kelasSet]) => ({
+          mapel,
+          kelas: Array.from(kelasSet),
+        })
+      ),
+      rowsUmum: Array.from(resultUmum.entries()).map(
+        ([mapel, kelasSet]) => ({
+          mapel,
+          kelas: Array.from(kelasSet),
+        })
+      ),
+    };
+  }
+
+  // MODE PER KELAS (lama, BIARKAN)
+  const siswaList = siswaKelas;
+
+// === UMUM ===
+const rowsUmum = mapelUmum
+  .filter((m) => appliesToClass(m, selectedKelas))
+  .map((m) => {
+    let filled = 0;
+
+    siswaList.forEach((s) => {
+      const r = raporMap[s.nisn] || {};
+      const nilai = readFlat(r, m.nama);
+
+      // capaian (tetap dicek)
+      const sk = safeKey(m.nama);
+      const capCandidates = [
+        `${m.nama}_capaian`,
+        `capaian_${m.nama}`,
+        `${sk}_CAPAIAN`,
+        `CAPAIAN_${sk}`,
+        `${sk}_capaian`,
+        `capaian_${sk}`,
+      ];
+
+      let capaian;
+      for (const cKey of capCandidates) {
+        if (r[cKey] !== undefined) {
+          capaian = r[cKey];
+          break;
+        }
       }
-    }
 
-    if (nonEmpty(nilai) && nonEmpty(capaian)) {
-      filled += 1;
-    }
-  }
-  return {
-    mapel: mapelName,
-    total,
-    filled,
-    complete: total > 0 && filled === total,
-  };
-};
+      if (nonEmpty(nilai) && nonEmpty(capaian)) filled++;
+    });
 
+    return {
+      mapel: m.nama,
+      kelas: [], // kosong → tidak dipakai di mode per kelas
+      complete: filled === siswaList.length,
+      filled,
+      total: siswaList.length,
+    };
+  });
 
-    // PONDOK: cukup nilai saja seperti sebelumnya
-    const calcPondok = (mapelName) => {
-  let filled = 0;
-  for (const s of siswaKelas) {
-    const r = raporMap[s.nisn] || {};
+// === PONDOK ===
+const rowsPondok = mapelPondok
+  .filter((m) => appliesToClass(m, selectedKelas))
+  .map((m) => {
+    let filled = 0;
 
-    // cek nested pondok (original atau safe)
-    const nested = readPondok(r, mapelName);
-    const nilaiNested = nested?.nilai;
+    siswaList.forEach((s) => {
+      const r = raporMap[s.nisn] || {};
+      const nested = readPondok(r, m.nama);
+      const flat = readFlat(r, m.nama);
+      if (nonEmpty(nested?.nilai) || nonEmpty(flat)) filled++;
+    });
 
-    // cek flat alternatif (original or safe)
-    const nilaiFlat = readFlat(r, mapelName);
+    return {
+      mapel: m.nama,
+      kelas: [],
+      complete: filled === siswaList.length,
+      filled,
+      total: siswaList.length,
+    };
+  });
 
-    if (nonEmpty(nilaiNested) || nonEmpty(nilaiFlat)) filled += 1;
-  }
-  return {
-    mapel: mapelName,
-    total,
-    filled,
-    complete: total > 0 && filled === total,
-  };
-};
+return { rowsUmum, rowsPondok };
+}, [selectedKelas, kelasList, mapelUmum, mapelPondok, siswaKelas, raporMap]);
 
-    const umumKelasDocs = mapelUmum.filter((m) =>
-      appliesToClass(m, selectedKelas)
-    );
-    const pondokKelasDocs = mapelPondok.filter((m) =>
-      appliesToClass(m, selectedKelas)
-    );
-
-    const umum = umumKelasDocs
-      .map((m) => calcUmum(m.nama))
-      .sort((a, b) => String(a.mapel).localeCompare(String(b.mapel), "id"));
-
-    const pondok = pondokKelasDocs
-      .map((m) => calcPondok(m.nama))
-      .sort((a, b) => String(a.mapel).localeCompare(String(b.mapel), "id"));
-
-    return { rowsUmum: umum, rowsPondok: pondok };
-  }, [mapelUmum, mapelPondok, selectedKelas, siswaKelas, raporMap]);
 
   /* ---------- UI ---------- */
   return (
@@ -247,21 +308,25 @@ export default function PreviewNilaiPage() {
         {/* Kelas Selector + Tombol Cetak (redirect ke halaman leger) */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-8 flex items-center gap-3">
           <span className="text-sm text-slate-600">Pilih Kelas:</span>
-          <select
-            value={selectedKelas}
-            onChange={(e) => setSelectedKelas(e.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-          >
-            {kelasList.length === 0 ? (
-              <option value="">(kelas belum ada)</option>
-            ) : (
-              kelasList.map((k, i) => (
-                <option key={`${k}-${i}`} value={k}>
-                  {k}
-                </option>
-              ))
-            )}
-          </select>
+
+<select
+  value={selectedKelas}
+  onChange={(e) => setSelectedKelas(e.target.value)}
+  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+>
+  <option value="__ALL__">Semua Kelas</option>
+
+  {kelasList.length === 0 ? (
+    <option value="">(kelas belum ada)</option>
+  ) : (
+    kelasList.map((k, i) => (
+      <option key={`${k}-${i}`} value={k}>
+        {k}
+      </option>
+    ))
+  )}
+</select>
+
 
           <div className="ml-auto flex items-center gap-2">
             <div className="text-sm text-slate-500">
@@ -324,13 +389,29 @@ export default function PreviewNilaiPage() {
                       >
                         <td className="px-3 py-2 text-center">{i + 1}</td>
                         <td className="px-3 py-2">{r.mapel}</td>
-                        <td className="px-3 py-2">
-                          <Pill ok={r.complete}>
-                            {r.complete
-                              ? `Lengkap (${r.filled}/${r.total} siswa)`
-                              : `Belum Lengkap (${r.filled}/${r.total})`}
-                          </Pill>
-                        </td>
+                       <td className="px-3 py-2">
+  {selectedKelas === "__ALL__" ? (
+    // MODE SEMUA KELAS → badge kelas
+    <div className="flex flex-wrap gap-1">
+      {r.kelas.map((k) => (
+        <span
+          key={k}
+          className="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-[11px] font-semibold"
+        >
+          {k}
+        </span>
+      ))}
+    </div>
+  ) : (
+    // MODE PER KELAS → status lengkap
+    <Pill ok={r.complete}>
+      {r.complete
+        ? `Lengkap (${r.filled}/${r.total})`
+        : `Belum Lengkap (${r.filled}/${r.total})`}
+    </Pill>
+  )}
+</td>
+
                       </tr>
                     ))
                   )}
@@ -377,13 +458,29 @@ export default function PreviewNilaiPage() {
                       >
                         <td className="px-3 py-2 text-center">{i + 1}</td>
                         <td className="px-3 py-2">{r.mapel}</td>
-                        <td className="px-3 py-2">
-                          <Pill ok={r.complete}>
-                            {r.complete
-                              ? `Lengkap (${r.filled}/${r.total} siswa)`
-                              : `Belum Lengkap (${r.filled}/${r.total})`}
-                          </Pill>
-                        </td>
+                       <td className="px-3 py-2">
+  {selectedKelas === "__ALL__" ? (
+    // MODE SEMUA KELAS → badge kelas
+    <div className="flex flex-wrap gap-1">
+      {r.kelas.map((k) => (
+        <span
+          key={k}
+          className="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-[11px] font-semibold"
+        >
+          {k}
+        </span>
+      ))}
+    </div>
+  ) : (
+    // MODE PER KELAS → status lengkap
+    <Pill ok={r.complete}>
+      {r.complete
+        ? `Lengkap (${r.filled}/${r.total})`
+        : `Belum Lengkap (${r.filled}/${r.total})`}
+    </Pill>
+  )}
+</td>
+
                       </tr>
                     ))
                   )}

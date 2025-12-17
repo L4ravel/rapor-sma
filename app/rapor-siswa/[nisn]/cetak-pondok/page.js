@@ -977,7 +977,7 @@ const { biodata, rowsPondok } = useMemo(() => {
   <div className="font-bold underline">
     {formatNamaGelar(bio?.kepala_sekolah)}
   </div>
-  <div className="mt-0.5">NIY. 821402011985 01 061</div>
+  <div className="mt-0.5">NIY. </div>
 </div>
         
       </td>

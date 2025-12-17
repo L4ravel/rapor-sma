@@ -588,10 +588,10 @@ const { biodata, rowsPondok } = useMemo(() => {
           المادة الدراسية
         </th>
         <th className="w-[55px] border border-black text-center px-1 py-[1px]">
-          الدرجة
+          رقمًا 
         </th>
         <th className="border border-black text-center px-1 py-[1px]">
-          الدرجة
+          كتابةً
         </th>
       </tr>
     </thead>
@@ -977,7 +977,7 @@ const { biodata, rowsPondok } = useMemo(() => {
   <div className="font-bold underline">
     {formatNamaGelar(bio?.kepala_sekolah)}
   </div>
-  <div className="mt-0.5">NIP.</div>
+  <div className="mt-0.5">NIY. 821402011985 01 061</div>
 </div>
         
       </td>

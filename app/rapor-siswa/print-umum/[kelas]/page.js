@@ -300,6 +300,97 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
         </tbody>
       </table>
 
+      {/* TANDA TANGAN WALI KELAS — PRINT ONLY (SETELAH TABEL NILAI) */}
+<div className="hidden print:block mt-10">
+  <table className="w-full text-[11px] leading-tight">
+    <tbody>
+      <tr>
+        <td className="w-1/2" />
+        <td className="w-1/2 align-top p-2 text-right">
+          <div>{waktuPembagianRaport}</div>
+          <div>Wali Kelas,</div>
+
+          <div className="mt-16 inline-block text-left">
+            <div className="font-bold underline">
+              {formatNamaGelar(wali?.nama_wali)}
+            </div>
+            <div>NIP.</div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+      {/* PAGE BREAK: mulai halaman kedua */}
+<div className="hidden print:block print:break-before-page mt-6" />
+        {/* Kop halaman 2: hanya muncul saat print */}
+        <div
+          className="hidden print:block leading-snug mb-6"
+          style={{
+            fontSize: "11pt",
+            fontFamily: "Arial, Helvetica, sans-serif",
+          }}
+        >
+          <div className="grid grid-cols-[1.3fr_1fr] gap-x-20">
+            {/* kiri */}
+            <div className="space-y-1">
+              <div className="flex">
+                <span className="w-36">Nama</span>
+                <span className="w-4 text-center">:</span>
+                <span className="font-bold">{biodata.nama}</span>
+              </div>
+              <div className="flex">
+                <span className="w-36">NIS/NISN</span>
+                <span className="w-4 text-center">:</span>
+                <span>- / {biodata.nisn}</span>
+              </div>
+              <div className="flex">
+                <span className="w-36">Nama Sekolah</span>
+                <span className="w-4 text-center">:</span>
+                <span className="whitespace-nowrap">
+                  {bio?.nama_sekolah || "—"}
+                </span>
+              </div>
+              <div className="flex">
+                <span className="w-36">Alamat</span>
+                <span className="w-4 text-center">:</span>
+                <span className="whitespace-nowrap">
+                  {bio?.alamat || "—"}
+                </span>
+              </div>
+            </div>
+
+            {/* kanan */}
+            <div className="space-y-1">
+              <div className="flex">
+                <span className="w-32">Kelas</span>
+                <span className="w-4 text-center">:</span>
+                <span className="font-bold">{biodata.kelas}</span>
+              </div>
+              <div className="flex">
+                <span className="w-32">Semester</span>
+                <span className="w-4 text-center">:</span>
+                <span>{bio?.semesterUmum || biodata.semester || "-"}</span>
+              </div>
+              <div className="flex">
+                <span className="w-32">Fase</span>
+                <span className="w-4 text-center">:</span>
+                <span>{bio?.fase || biodata.fase || "-"}</span>
+              </div>
+              <div className="flex">
+                <span className="w-32">Tahun Pelajaran</span>
+                <span className="w-4 text-center">:</span>
+                <span>
+                  {bio?.tahunPelajaranUmum || biodata.tahun || "-"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="border-b border-black mt-2.5" />
+        </div>
+
       {/* EKSTRAKURIKULER – sama dengan single-page (2 baris kosong) */}
       <div className="mt-3">
         <table className="w-full border border-black border-collapse text-[11px]">
@@ -382,76 +473,11 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
         </div>
       </div>
 
-            {/* TANDA TANGAN – HALAMAN 2 (khusus print ada kop lagi) */}
-      <div className="mt-8 print:break-before-page">
-        {/* Kop halaman 2: hanya muncul saat print */}
-        <div
-          className="hidden print:block leading-snug mb-4"
-          style={{
-            fontSize: "11pt",
-            fontFamily: "Arial, Helvetica, sans-serif",
-          }}
-        >
-          <div className="grid grid-cols-[1.3fr_1fr] gap-x-20">
-            {/* kiri */}
-            <div className="space-y-1">
-              <div className="flex">
-                <span className="w-36">Nama</span>
-                <span className="w-4 text-center">:</span>
-                <span className="font-bold">{biodata.nama}</span>
-              </div>
-              <div className="flex">
-                <span className="w-36">NIS/NISN</span>
-                <span className="w-4 text-center">:</span>
-                <span>- / {biodata.nisn}</span>
-              </div>
-              <div className="flex">
-                <span className="w-36">Nama Sekolah</span>
-                <span className="w-4 text-center">:</span>
-                <span className="whitespace-nowrap">
-                  {bio?.nama_sekolah || "—"}
-                </span>
-              </div>
-              <div className="flex">
-                <span className="w-36">Alamat</span>
-                <span className="w-4 text-center">:</span>
-                <span className="whitespace-nowrap">
-                  {bio?.alamat || "—"}
-                </span>
-              </div>
-            </div>
-
-            {/* kanan */}
-            <div className="space-y-1">
-              <div className="flex">
-                <span className="w-32">Kelas</span>
-                <span className="w-4 text-center">:</span>
-                <span className="font-bold">{biodata.kelas}</span>
-              </div>
-              <div className="flex">
-                <span className="w-32">Semester</span>
-                <span className="w-4 text-center">:</span>
-                <span>{bio?.semesterUmum || biodata.semester || "-"}</span>
-              </div>
-              <div className="flex">
-                <span className="w-32">Fase</span>
-                <span className="w-4 text-center">:</span>
-                <span>{bio?.fase || biodata.fase || "-"}</span>
-              </div>
-              <div className="flex">
-                <span className="w-32">Tahun Pelajaran</span>
-                <span className="w-4 text-center">:</span>
-                <span>
-                  {bio?.tahunPelajaranUmum || biodata.tahun || "-"}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="border-b border-black mt-2.5" />
-        </div>
+           
+     
 
         {/* Tabel tanda tangan (muncul di layar & print) */}
-        <table className="w-full text-[11px] leading-tight">
+        <table className="w-full text-[11px] leading-tight mt-8">
           <tbody>
             {/* Baris 1: Orang Tua/Wali | Wali Kelas */}
             <tr>
@@ -480,28 +506,29 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
                 <div>Kepala Sekolah</div>
 
                 <div className="mt-3 inline-block text-center">
-                  {ttdKepalaSekolahUrl && (
-                    <div className="mb-0.5 flex justify-center">
-                      <img
-                        src={ttdKepalaSekolahUrl}
-                        alt="Tanda tangan Kepala Sekolah"
-                        className="h-16 w-40 object-contain"
-                      />
-                    </div>
-                  )}
+  {ttdKepalaSekolahUrl && (
+    <div className="mb-0.5 flex justify-center">
+      <img
+        src={ttdKepalaSekolahUrl}
+        alt="Tanda tangan Kepala Sekolah"
+        className="h-16 w-40 object-contain"
+      />
+    </div>
+  )}
 
-                  <div className="font-bold underline">
-                    {formatNamaGelar(bio?.kepala_sekolah)}
-                  </div>
-                  <div className="text-left">NIP.</div>
-                </div>
+  <div className="inline-block text-left">
+    <div className="font-bold underline">
+      {formatNamaGelar(bio?.kepala_sekolah)}
+    </div>
+    <div>NIP.</div>
+  </div>
+</div>
+
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-
-    </div>
   );
 }
 

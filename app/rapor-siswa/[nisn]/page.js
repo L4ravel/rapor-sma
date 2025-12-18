@@ -12,6 +12,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
+import { Trophy, Award, Star, Sparkles, X } from 'lucide-react';
 
 const FIX_KEYS = [
   "nisn",
@@ -104,6 +105,11 @@ export default function DetailRaporSiswa() {
   const [dsUmum, setDsUmum] = useState([]); // [{nama}]
   const [dsPondok, setDsPondok] = useState([]); // [{nama, arab?}]
   const [loadingDs, setLoadingDs] = useState(true);
+  const [rankInfo, setRankInfo] = useState(null);
+  const [showRankModal, setShowRankModal] = useState(false);
+const [rankLoading, setRankLoading] = useState(false);
+  const rap = rapor || {};
+
 
   // Check redirect hanya sekali dan stabil
   useEffect(() => {
@@ -211,7 +217,7 @@ export default function DetailRaporSiswa() {
 
   // ==== Semua hooks di bawah ini SELALU dipanggil ====
 
-  const rap = rapor || {};
+  
   const allKeys = useMemo(() => Object.keys(rap), [rap]);
 
   const capaianMap = useMemo(() => {
@@ -317,6 +323,55 @@ const rowsPondok = useMemo(() => {
 
   return rows;
 }, [dsPondok, rap, idxPondok]);
+
+useEffect(() => {
+  if (!rap?.nisn || !rap?.kelas) return;
+
+  const runRank = async () => {
+    // 1. ambil semua raport
+    const snap = await getDocs(collection(db, "raport"));
+
+    // 2. ambil hanya raport siswa DI KELAS YANG SAMA
+    const kelasTarget = String(rap.kelas).toLowerCase();
+
+    const totals = snap.docs
+      .map((doc) => {
+        const data = doc.data();
+
+        // ❗ filter kelas
+        if (String(data.kelas).toLowerCase() !== kelasTarget) {
+          return null;
+        }
+
+        // 3. jumlahkan semua nilai mapel (angka saja)
+        const totalNilai = Object.values(data)
+          .filter((v) => typeof v === "number")
+          .reduce((a, b) => a + b, 0);
+
+        return {
+          nisn: doc.id,
+          total: totalNilai,
+        };
+      })
+      .filter(Boolean); // buang null
+
+    // 4. urutkan
+    totals.sort((a, b) => b.total - a.total);
+
+    // 5. cari ranking siswa ini
+    const rank =
+      totals.findIndex((t) => t.nisn === rap.nisn) + 1;
+
+    setRankInfo({
+      rank,
+      totalSiswa: totals.length,
+    });
+  };
+
+  runRank();
+}, [rap]);
+
+
 
 
   // ==== Setelah semua hooks dipanggil, baru conditional return ====
@@ -493,7 +548,7 @@ const rowsPondok = useMemo(() => {
     return (
       <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-6">
         <h2 className="bg-emerald-100 text-black p-3 font-semibold">
-          {"📖 Hafalan Al Qur&apos;an"}
+          {"📖 Hafalan Al Qur'an"}
         </h2>
 
         {kosong ? (
@@ -616,6 +671,140 @@ const rowsPondok = useMemo(() => {
     </div>
   );
 
+const TableRanking = () => {
+  const [showRankModal, setShowRankModal] = useState(false);
+  const [rankLoading, setRankLoading] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  // ⬅️ RETURN SETELAH HOOK
+  if (!rankInfo) return null;
+
+  const handleOpen = () => {
+    setRankLoading(true);
+    setShowRankModal(true);
+
+    setTimeout(() => {
+      setRankLoading(false);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+    }, 4000);
+  };
+
+  return (
+    <>
+      {/* ===== BUTTON CARD ===== */}
+      <div className="relative bg-gradient-to-br from-white via-indigo-50 to-purple-50 shadow-xl rounded-2xl mt-4 p-8 text-center overflow-hidden border border-indigo-100">
+        <button
+          onClick={handleOpen}
+          className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-bold text-lg shadow-2xl hover:scale-105 transition"
+        >
+          🏆 Lihat Rangking
+        </button>
+      </div>
+
+      {/* ===== MODAL ===== */}
+      {showRankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-[380px] text-center p-8">
+            {rankLoading ? (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <span className="text-6xl animate-bounce">🏆</span>
+                <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <div className="text-gray-700 font-semibold">
+                  Menghitung peringkat...
+                </div>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-2xl font-extrabold text-indigo-600 mb-6">
+                  🏆 Peringkat Kelas
+                </h3>
+
+                {/* === RANK DISPLAY (FADE → TERANG) === */}
+                <div className="bg-white rounded-3xl p-8 mb-6 shadow-xl border-2 border-indigo-100 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-100/40 to-transparent animate-revealSweep" />
+
+                  <div className="relative z-10">
+                    <div className="text-xs font-bold text-gray-500 uppercase mb-3">
+                      Rangking
+                    </div>
+
+                    <div className="text-8xl font-black bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent opacity-0 animate-rankReveal">
+                      {rankInfo.rank}
+                    </div>
+
+                    <div className="mt-4 text-sm font-semibold text-gray-600 opacity-0 animate-rankSubReveal">
+                      dari{" "}
+                      <span className="text-xl font-bold text-indigo-600">
+                        {rankInfo.totalSiswa}
+                      </span>{" "}
+                      siswa
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowRankModal(false)}
+                  className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition"
+                >
+                  Tutup
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes rankReveal {
+          from {
+            opacity: 0;
+            filter: blur(6px);
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            filter: blur(0);
+            transform: scale(1);
+          }
+        }
+        @keyframes rankSubReveal {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes revealSweep {
+          from {
+            transform: translateX(-100%);
+          }
+          to {
+            transform: translateX(100%);
+          }
+        }
+        .animate-rankReveal {
+          animation: rankReveal 0.8s ease-out forwards;
+        }
+        .animate-rankSubReveal {
+          animation: rankSubReveal 0.5s ease-out forwards;
+          animation-delay: 0.3s;
+        }
+        .animate-revealSweep {
+          animation: revealSweep 1.2s ease-in-out;
+        }
+      `}</style>
+    </>
+  );
+};
+
+
+
+
+
   const TableCatatanWali = () => (
     <div className="bg-white shadow rounded-lg mt-6">
       <h2 className="text-lg font-semibold text-black p-4 border-b">
@@ -718,6 +907,7 @@ const rowsPondok = useMemo(() => {
         <TableHafalan />
         <TableAbsensi />
         <TablePoinPelanggaran />
+        <TableRanking />
         <TableCatatanWali />
 
         {/* Cetak */}

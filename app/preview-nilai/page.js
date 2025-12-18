@@ -113,6 +113,110 @@ export default function PreviewNilaiPage() {
 
   const [siswaKelas, setSiswaKelas] = useState([]); // siswa di kelas terpilih
   const [raporMap, setRaporMap] = useState({}); // {nisn: {...rapor}}
+  const [progress, setProgress] = useState({
+  current: 0,
+  total: 0,
+  percent: 0,
+});
+const [progressDetail, setProgressDetail] = useState({
+  siswaBelumLengkap: 0,
+  totalSiswa: 0,
+  totalMapel: 0,
+});
+
+useEffect(() => {
+  (async () => {
+    if (!selectedKelas) return;
+    setLoading(true);
+
+    try {
+      const sSnap = await getDocs(collection(db, "siswa"));
+      const siswaAll = sSnap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() || {}),
+      }));
+
+      const siswaKls =
+        selectedKelas === "__ALL__"
+          ? siswaAll
+          : siswaAll.filter((s) => s.kelas === selectedKelas);
+
+      setSiswaKelas(siswaKls);
+
+      const rSnap = await getDocs(collection(db, "raport"));
+      const rapor = {};
+      rSnap.docs.forEach((d) => (rapor[d.id] = d.data() || {}));
+      setRaporMap(rapor);
+
+      /* ================== HITUNG PROGRESS ================== */
+     let total = 0;
+let current = 0;
+
+const siswaBelumLengkapSet = new Set();
+const mapelSet = new Set();
+
+siswaKls.forEach((s) => {
+  const r = rapor[s.nisn] || {};
+  let siswaLengkap = true;
+
+  // === UMUM ===
+  mapelUmum
+    .filter((m) => appliesToClass(m, s.kelas))
+    .forEach((m) => {
+      mapelSet.add(m.nama);
+      total++;
+
+      const nilai = readFlat(r, m.nama);
+      if (nonEmpty(nilai)) {
+        current++;
+      } else {
+        siswaLengkap = false;
+      }
+    });
+
+  // === PONDOK ===
+  mapelPondok
+    .filter((m) => appliesToClass(m, s.kelas))
+    .forEach((m) => {
+      mapelSet.add(m.nama);
+      total++;
+
+      const nested = readPondok(r, m.nama);
+      const flat = readFlat(r, m.nama);
+
+      if (
+        nonEmpty(nested?.nilai) ||
+        typeof flat === "number" ||
+        nonEmpty(flat)
+      ) {
+        current++;
+      } else {
+        siswaLengkap = false;
+      }
+    });
+
+  if (!siswaLengkap) {
+    siswaBelumLengkapSet.add(s.nisn);
+  }
+});
+
+setProgress({
+  current,
+  total,
+  percent: total === 0 ? 0 : Math.round((current / total) * 100),
+});
+
+setProgressDetail({
+  siswaBelumLengkap: siswaBelumLengkapSet.size,
+  totalSiswa: siswaKls.length,
+  totalMapel: mapelSet.size,
+});
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [selectedKelas, mapelUmum, mapelPondok]);
+
 
   /* ---------- Load mapel dari koleksi yang dipakai ---------- */
   useEffect(() => {
@@ -355,6 +459,38 @@ return { rowsUmum, rowsPondok };
     ))
   )}
 </select>
+
+{/* ===== Progress Bar ===== */}
+<div className="hidden md:block w-full mt-4">
+  <div className="flex justify-between text-xs text-slate-600 mb-1">
+    <span>Progres Kelengkapan Nilai</span>
+    <span>{progress.percent}%</span>
+  </div>
+
+  <div className="h-3 w-full bg-slate-200 rounded-full overflow-hidden">
+    <div
+      className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-500"
+      style={{ width: `${progress.percent}%` }}
+    />
+  </div>
+
+  <div className="text-xs text-slate-500 mt-1">
+    {progress.current} / {progress.total} nilai terisi
+  </div>
+
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-slate-600 mt-2 ">
+    <div>
+      <b>{progress.current}</b> nilai terisi
+    </div>
+    <div>
+      <b>{progressDetail.siswaBelumLengkap}</b> siswa nilai belum lengkap
+    </div>   
+  </div>
+</div>
+
+
+
+
 
 
           <div className="ml-auto flex items-center gap-2">

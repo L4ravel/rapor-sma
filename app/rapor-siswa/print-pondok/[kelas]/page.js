@@ -23,7 +23,7 @@ export default function PrintPondokKelas() {
   return (
     <div className="min-h-screen bg-white text-black">
       <style>{`
-        @page { size: A4; margin: 12mm; }
+        @page { size: A4; margin: 0mm 12mm 12mm 12mm; }
         @media print {
           .no-print { display: none !important; }
           .page { break-inside: avoid; page-break-after: always; }

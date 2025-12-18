@@ -51,6 +51,7 @@ const safeKey = (name) =>
     .replace(/\//g, "_")
     .replace(/\./g, "_")
     .trim();
+    
 
 // Normalisasi nilai → angka murni (untuk total/rata2)
 function normalizeToNumber(v) {
@@ -409,7 +410,7 @@ if (rawVal === undefined) {
       {/* Wrapper konten:
           - di layar: max-w-900 dan center
           - di print: full width (max-w-none) */}
-      <div className="w-full max-w-[900px] mx-auto p-4 pb-8 print:max-w-none print:pt-[10mm]">
+      <div className="w-full max-w-[900px] mx-auto p-4 pb-8 print:max-w-none print:pt-[7mm]">
         {/* KOP */}
         <div className="text-center mb-0">
           <img
@@ -526,125 +527,52 @@ if (rawVal === undefined) {
         </table>
 
         {/* TABEL NILAI PONDOK */}
-<div className="grid grid-cols-2 gap-[2px]">
-  {/* ============= INDONESIA ============= */}
-  <table className="w-full border border-black border-collapse text-[9px] leading-[1.1]">
-    <thead className="bg-emerald-100 text-[10px] font-bold">
-      <tr>
-        <th className="w-[28px] border border-black text-center px-1 py-[1px]">
-          No
-        </th>
-        <th className="border border-black text-center px-1 py-[1px]">
-          Mata Pelajaran
-        </th>
-        <th className="w-[55px] border border-black text-center px-1 py-[1px]">
-          Angka
-        </th>
-        <th className="border border-black text-center px-1 py-[1px]">
-          Huruf
-        </th>
-      </tr>
-    </thead>
-    <tbody className="text-[9px]">
-      {rowsPondok.length === 0 ? (
-        <tr>
-          <td
-            colSpan={4}
-            className="border border-black text-center px-1 py-[1px]"
-          >
-            Tidak ada data.
+{/* TABEL NILAI PONDOK (SATU TABEL – AGAR GARIS LURUS) */}
+<table className="w-full border border-black border-collapse text-[9px] leading-[1.1]">
+  <thead className="bg-emerald-100 text-[10px] font-bold">
+    <tr>
+      {/* INDONESIA */}
+      <th className="w-[28px] border border-black text-center px-1 py-[1px]">No</th>
+      <th className="w-[140px] border border-black text-center px-1 py-[1px]">Mata Pelajaran</th>
+      <th className="w-[40px] border border-black text-center px-1 py-[1px]">Angka</th>
+      <th className="w-[150px] border border-black text-center px-1 py-[1px]">Huruf</th>
+
+      {/* ARAB (RTL, BERHADAPAN) */}
+      <th className="w-[150px] border border-black text-center px-1 py-[1px]">كتابةً</th>
+      <th className="w-[40px] border border-black text-center px-1 py-[1px]">رقمًا</th>
+      <th className="w-[150px] border border-black text-center px-1 py-[1px]">المواد الدراسية</th>
+      <th className="w-[28px] border border-black text-center px-1 py-[1px]">رقم</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {rowsPondok.map((r, i) => {
+      const n = Number(r.nilai);
+      return (
+        <tr key={r.mapel}>
+          <td className="border border-black text-center px-1 py-[1px]">{i + 1}</td>
+          <td className="border border-black px-1 py-[1px]">{fmt(r.mapel)}</td>
+          <td className="border border-black text-center px-1 py-[1px]">{n}</td>
+          <td className="border border-black px-1 py-[1px]">{terbilangID(n)}</td>
+
+          <td className="border border-black text-right px-1 py-[1px]" dir="rtl">
+            {terbilangAR(n)}
+          </td>
+          <td className="border border-black text-center px-1 py-[1px]">
+            {toArabicDigits(n)}
+          </td>
+          <td className="border border-black text-right px-1 py-[1px]" dir="rtl">
+            {getArab(r.mapel)}
+          </td>
+          <td className="border border-black text-center px-1 py-[1px]">
+            {toArabicDigits(i + 1)}
           </td>
         </tr>
-      ) : (
-        rowsPondok.map((r, i) => {
-          const n = Number(r.nilai);
-          return (
-            <tr key={r.mapel}>
-              <td className="border border-black text-center px-1 py-[1px]">
-                {i + 1}
-              </td>
-              <td className="border border-black px-1 py-[1px]">
-                {fmt(r.mapel)}
-              </td>
-              {/* Angka di kolom ketiga (seperti gambar) */}
-              <td className="border border-black text-center font-semibold px-1 py-[1px]">
-                {isNaN(n) ? "" : n}
-              </td>
-              {/* Tulisan huruf di kanan angka */}
-              <td className="border border-black px-1 py-[1px]">
-                {isNaN(n) ? "" : terbilangID(n)}
-              </td>
-            </tr>
-          );
-        })
-      )}
-    </tbody>
-  </table>
+      );
+    })}
+  </tbody>
+</table>
 
-    {/* ============= ARAB ============= */}
-  <table
-    className="w-full border border-black border-collapse text-[9px] leading-[1.1]"
-    dir="rtl"
-  >
-    <thead className="bg-emerald-100 text-[10px] font-bold">
-      <tr>
-        {/* urutan: رقم, المادة الدراسية, الدرجة, الدرجة */}
-        <th className="w-[28px] border border-black text-center px-1 py-[1px]">
-          رقم
-        </th>
-        <th className="border border-black text-center px-1 py-[1px]">
-          المادة الدراسية
-        </th>
-        <th className="w-[55px] border border-black text-center px-1 py-[1px]">
-          رقمًا 
-        </th>
-        <th className="border border-black text-center px-1 py-[1px]">
-          كتابةً
-        </th>
-      </tr>
-    </thead>
-    <tbody className="text-[9px]">
-      {rowsPondok.length === 0 ? (
-        <tr>
-          <td
-            colSpan={4}
-            className="border border-black text-center px-1 py-[1px]"
-          >
-            لا توجد بيانات
-          </td>
-        </tr>
-      ) : (
-        rowsPondok.map((r, i) => {
-          const n = Number(r.nilai);
-          return (
-            <tr key={r.mapel}>
-              {/* رقم */}
-              <td className="border border-black text-center px-1 py-[1px]">
-                {toArabicDigits(i + 1)}
-              </td>
-
-              {/* المادة الدراسية */}
-              <td className="border border-black text-right px-1 py-[1px]">
-                {getArab(r.mapel) || fmt(r.mapel)}
-              </td>
-
-              {/* الدرجة (angka Arab, sejajar dengan Angka Indonesia) */}
-              <td className="border border-black text-center font-semibold px-1 py-[1px]">
-                {isNaN(n) ? "" : toArabicDigits(n)}
-              </td>
-
-              {/* الدرجة (tulisan / كتابة nilai) */}
-              <td className="border border-black text-right px-1 py-[1px]">
-                {isNaN(n) ? "" : terbilangAR(n)}
-              </td>
-            </tr>
-          );
-        })
-      )}
-    </tbody>
-  </table>
-
-</div>
 
 
         {/* RINGKASAN NILAI */}

@@ -560,7 +560,7 @@ useEffect(() => {
             <thead className="bg-gray-50 text-black">
               <tr>
                 <th className="p-3 text-left border border-gray-200 w-1/2">
-                  {"Penilaian Hafalan Al Qur&apos;an"}
+                  {"Penilaian Hafalan Al Qur'an"}
                 </th>
                 <th className="p-3 text-left border border-gray-200 w-1/2"></th>
               </tr>
@@ -704,8 +704,8 @@ const TableRanking = () => {
 
       {/* ===== MODAL ===== */}
       {showRankModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-[380px] text-center p-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-2xl w-[90%] max-w-[380px] text-center p-6 md:p-8">
             {rankLoading ? (
               <div className="flex flex-col items-center gap-4 py-8">
                 <span className="text-6xl animate-bounce">🏆</span>
@@ -721,7 +721,7 @@ const TableRanking = () => {
                 </h3>
 
                 {/* === RANK DISPLAY (FADE → TERANG) === */}
-                <div className="bg-white rounded-3xl p-8 mb-6 shadow-xl border-2 border-indigo-100 relative overflow-hidden">
+               <div className="bg-white rounded-3xl p-5 md:p-8 mb-6 shadow-xl border-2 border-indigo-100 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-100/40 to-transparent animate-revealSweep" />
 
                   <div className="relative z-10">
@@ -729,7 +729,7 @@ const TableRanking = () => {
                       Rangking
                     </div>
 
-                    <div className="text-8xl font-black bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent opacity-0 animate-rankReveal">
+                    <div className="text-6xl md:text-8xl font-black bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent opacity-0 animate-rankReveal">
                       {rankInfo.rank}
                     </div>
 
@@ -855,14 +855,14 @@ const TableRanking = () => {
                 <div className="flex">
                   <span className="w-32 md:w-36">Nama Sekolah</span>
                   <span className="w-4 text-center">:</span>
-                  <span className="whitespace-nowrap">
+                  <span className="break-words">
                     {bio?.nama_sekolah || "—"}
                   </span>
                 </div>
                 <div className="flex">
                   <span className="w-32 md:w-36">Alamat</span>
                   <span className="w-4 text-center">:</span>
-                  <span className="whitespace-nowrap">
+                  <span className="break-words">
                     {bio?.alamat || "—"}
                   </span>
                 </div>
@@ -907,7 +907,7 @@ const TableRanking = () => {
         <TableHafalan />
         <TableAbsensi />
         <TablePoinPelanggaran />
-        <TableRanking />
+        {/* <TableRanking /> */}
         <TableCatatanWali />
 
         {/* Cetak */}

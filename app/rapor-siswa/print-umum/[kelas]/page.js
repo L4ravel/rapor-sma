@@ -39,6 +39,18 @@ function formatNamaGelar(str) {
   return `${nama} ${gelar}`;
 }
 
+const FASE_E_KELAS = [
+  "10A1","10A2","10A3","10A4",
+  "10B1","10B2","10B3","10B4",
+];
+
+function resolveFase(kelas, faseDb) {
+  if (FASE_E_KELAS.includes(String(kelas || "").toUpperCase())) {
+    return "E";
+  }
+  return faseDb || "-";
+}
+
 /** Normalisasi nama mapel/capaian untuk pencocokan kunci */
 function canonName(x) {
   return String(x || "")
@@ -228,7 +240,7 @@ function SheetUmum({ rapor, wali, bio, datasetUmum }) {
             <div className="flex">
               <span className="w-32">Fase</span>
               <span className="w-4 text-center">:</span>
-              <span>{bio?.fase || biodata.fase || "-"}</span>
+              <span>{resolveFase(biodata.kelas, bio?.fase || biodata.fase)}</span>
             </div>
             <div className="flex">
               <span className="w-32">Tahun Pelajaran</span>

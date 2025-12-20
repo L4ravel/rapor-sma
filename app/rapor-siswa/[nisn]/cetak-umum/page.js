@@ -32,6 +32,18 @@ function normalizeNilai(v) {
   return String(v);
 }
 
+const FASE_E_KELAS = [
+  "10A1","10A2","10A3","10A4",
+  "10B1","10B2","10B3","10B4",
+];
+
+function resolveFase(kelas, faseDb) {
+  if (FASE_E_KELAS.includes(String(kelas || "").toUpperCase())) {
+    return "E";
+  }
+  return faseDb || "-";
+}
+
 function normalizeCapaian(v) {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
@@ -279,7 +291,7 @@ export default function CetakRaporUmum() {
           <div className="flex">
             <span className="w-32">Fase</span>
             <span className="w-4 text-center">:</span>
-            <span>{bio?.fase || "—"}</span>
+            <span>{resolveFase(biodata.kelas, bio?.fase || biodata.fase)}</span>
           </div>
           <div className="flex">
             <span className="w-32">Tahun Pelajaran</span>

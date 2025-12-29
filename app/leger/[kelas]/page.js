@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
 
+
+
+
 /* ===== Helpers ===== */
 const nonEmpty = (v) => !(v === undefined || v === null || String(v).trim() === "");
 const toNum = (v) => {
@@ -35,6 +38,74 @@ function appliesToClass(docData, kelas) {
   return tokens.includes(String(kelas).trim());
 }
 
+import * as XLSX from "xlsx";
+
+function downloadXLS(filename, sheetName, rows) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+
+  // ===== HEADER =====
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+    if (!cell) continue;
+
+    cell.s = {
+      font: { bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
+      },
+    };
+  }
+
+  // ===== BODY =====
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (!cell) continue;
+
+      const isNumber = typeof cell.v === "number";
+
+      cell.s = {
+        alignment: {
+          horizontal: isNumber ? "center" : "left",
+          vertical: "center",
+        },
+        border: {
+          top: { style: "thin" },
+          bottom: { style: "thin" },
+          left: { style: "thin" },
+          right: { style: "thin" },
+        },
+        numFmt: isNumber ? "0" : undefined,
+      };
+    }
+  }
+
+  // ===== AUTO WIDTH =====
+  ws["!cols"] = rows[0].map((_, i) => ({
+    wch: Math.max(
+      ...rows.map((r) => String(r[i] ?? "").length),
+      10
+    ),
+  }));
+
+  // ===== FREEZE HEADER =====
+  ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename);
+}
+
+
+
+
+
+
 // --- safeKey & readers (cek original name + safeKey UPPERCASE) ---
 const safeKey = (name) =>
   String(name || "")
@@ -46,24 +117,11 @@ const safeKey = (name) =>
 // baca flat value: coba r[orig], lalu r[SAFE]
 const readFlat = (rObj, mapelName) => {
   if (!rObj) return undefined;
-
-  const clean = String(mapelName || "").trim();
-  const sk = safeKey(clean);
-
-  // 1. exact
-  if (rObj[clean] !== undefined) return rObj[clean];
-
-  // 2. UPPERCASE safeKey
+  if (rObj[mapelName] !== undefined) return rObj[mapelName];
+  const sk = safeKey(mapelName);
   if (rObj[sk] !== undefined) return rObj[sk];
-
-  // 3. CASE-INSENSITIVE fallback (INI KUNCI NYA)
-  const foundKey = Object.keys(rObj).find(
-    (k) => k.toUpperCase() === sk
-  );
-
-  return foundKey ? rObj[foundKey] : undefined;
+  return undefined;
 };
-
 
 // baca nested pondok: coba r.pondok[orig] lalu r.pondok[SAFE]
 const readPondok = (rObj, mapelName) => {
@@ -291,7 +349,11 @@ const avgPondok = pondokCols.length ? getAvg(r, pondokCols, true)  : 0;
         rankByNisn[row.nisn] ?? "",
       ];
     });
-    download(`leger-umum-${kelas}.csv`, toCSV([header, ...rows]));
+    downloadXLS(
+  `leger-umum-${kelas}.xlsx`,
+  "Leger Umum",
+  [header, ...rows]
+);
   };
   const downloadPondok = () => {
     const header = ["No", "NISN", "Nama", ...pondokCols, "Absensi (S/I/A)", "Rerata Umum", "Rerata Pondok", "Jumlah", "Rangking"];
@@ -309,7 +371,11 @@ const avgPondok = pondokCols.length ? getAvg(r, pondokCols, true)  : 0;
         rankByNisn[row.nisn] ?? "",
       ];
     });
-    download(`leger-pondok-${kelas}.csv`, toCSV([header, ...rows]));
+    downloadXLS(
+  `leger-pondok-${kelas}.xlsx`,
+  "Leger Pondok",
+  [header, ...rows]
+);
   };
 
   /* ===== Print handlers ===== */
@@ -387,7 +453,7 @@ const avgPondok = pondokCols.length ? getAvg(r, pondokCols, true)  : 0;
                     className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
                     disabled={umumCols.length === 0}
                   >
-                    Download CSV
+                    Download Excel
                   </button>
                 </>
               }
@@ -482,7 +548,7 @@ const avgPondok = pondokCols.length ? getAvg(r, pondokCols, true)  : 0;
                     className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
                     disabled={pondokCols.length === 0}
                   >
-                    Download CSV
+                    Download Excel
                   </button>
                 </>
               }

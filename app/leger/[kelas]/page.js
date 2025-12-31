@@ -440,22 +440,35 @@ const avgPondok = pondokCols.length ? getAvg(r, pondokCols, true)  : 0;
             <Section
               title="📘 Leger Nilai Umum"
               right={
-                <>
-                  <button
-                    onClick={() => printAll("umum")}
-                    className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
-                    disabled={!siswa.length}
-                  >
-                    Print Semua
-                  </button>
-                  <button
-                    onClick={downloadUmum}
-                    className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
-                    disabled={umumCols.length === 0}
-                  >
-                    Download Excel
-                  </button>
-                </>
+  <>
+    {/* CETAK COVER */}
+    <button
+      onClick={() =>
+        window.open(`/cover/${encodeURIComponent(kelas)}`, "_blank")
+      }
+      className="px-3 py-2 rounded-md text-sm bg-blue-500 text-white hover:bg-blue-600"
+    >
+      Cetak Cover
+    </button>
+
+    {/* PRINT SEMUA MAPEL UMUM */}
+    <button
+      onClick={() => printAll("umum")}
+      className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
+      disabled={!siswa.length}
+    >
+      Print Semua
+    </button>
+
+    {/* DOWNLOAD EXCEL */}
+    <button
+      onClick={downloadUmum}
+      className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
+      disabled={umumCols.length === 0}
+    >
+      Download Excel
+    </button>
+  </>
               }
             >
               {umumCols.length === 0 ? (

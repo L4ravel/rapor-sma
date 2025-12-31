@@ -218,7 +218,7 @@ useEffect(() => {
           <div>E-mail</div><div>:</div><div>sma.islam.assunnah@gmail.com</div>
         </div>
       </div>
-    </div>
+    </div> 
 
     {/* ================= HALAMAN 3 : IDENTITAS PESERTA DIDIK ================= */}
    <div

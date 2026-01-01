@@ -110,16 +110,25 @@ function downloadXLS(filename, sheetName, rows) {
 const safeKey = (name) =>
   String(name || "")
     .toUpperCase()
-    .replace(/\//g, "_")
-    .replace(/\./g, "_")
+    .replace(/[^A-Z0-9]/g, "_") // 🔥 ini kuncinya
+    .replace(/_+/g, "_")
     .trim();
 
 // baca flat value: coba r[orig], lalu r[SAFE]
 const readFlat = (rObj, mapelName) => {
   if (!rObj) return undefined;
+
+  // 1. nama asli (jarang kepakai)
   if (rObj[mapelName] !== undefined) return rObj[mapelName];
-  const sk = safeKey(mapelName);
-  if (rObj[sk] !== undefined) return rObj[sk];
+
+  // 2. format Firestore kamu: Siroh_Tarikh
+  const key1 = mapelName.replace(/[^A-Za-z0-9]/g, "_");
+  if (rObj[key1] !== undefined) return rObj[key1];
+
+  // 3. fallback uppercase (jaga-jaga legacy)
+  const key2 = key1.toUpperCase();
+  if (rObj[key2] !== undefined) return rObj[key2];
+
   return undefined;
 };
 
@@ -284,6 +293,7 @@ export default function LegerKelasPage() {
         if (nested && nested.hasOwnProperty("nilai")) return nested.nilai;
         if (nonEmpty(nested)) return nested;
       }
+      
       // fallback flat (orig / safe)
       const flat = readFlat(r, mName);
       return nonEmpty(flat) ? flat : "";

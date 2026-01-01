@@ -7,6 +7,7 @@ import { db } from "@/lib/firebaseConfig";
 import Image from "next/image";
 
 
+const SHOW_PAGE_3 = false;
 
 export default function CoverKelasPage() {
   const { kelas } = useParams();
@@ -221,6 +222,7 @@ useEffect(() => {
     </div> 
 
     {/* ================= HALAMAN 3 : IDENTITAS PESERTA DIDIK ================= */}
+   {SHOW_PAGE_3 && (
    <div
   className="page-a4 page-break flex flex-col text-black"
   style={{
@@ -282,6 +284,7 @@ useEffect(() => {
 </div>
 
     </div>
+   )}
   </div>
 ))}
 

@@ -77,8 +77,12 @@ const CATEGORIES = [
     label: "Wali Kelas",
     description: "Menu harian wali kelas.",
     actions: [
+<<<<<<< HEAD
       { href: "/absensi-siswa", label: "Absensi Siswa", icon: "calendar" },
       { href: "/input-tahfidz", label: "Input Nilai Tahfidz", icon: "book" },
+=======
+      { href: "/absensi-siswa", label: "Absensi Siswa", icon: "calendar" },      
+>>>>>>> a4197c0e3e5ac25b8f084d5bb75d699be91c54eb
       { href: "/siswa", label: "Lihat Rapor", icon: "cap" },
       { href: "/preview-nilai", label: "Cetak Rapor", icon: "chart" },
     ],
@@ -89,6 +93,7 @@ const CATEGORIES = [
     description: "Pengisian nilai rapor.",
     actions: [
       { href: "/input-nilai/pondok", label: "Input Nilai Pondok", icon: "pencil" },
+      { href: "/input-tahfidz", label: "Input Nilai Tahfidz", icon: "book" },
       { href: "/input-nilai/umum", label: "Input Nilai Umum", icon: "pencil" },
     ],
   },

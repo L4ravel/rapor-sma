@@ -38,6 +38,7 @@ export default function InputNilaiUmumPage() {
   const [daftarKelas, setDaftarKelas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showCapaianModal, setShowCapaianModal] = useState(false);
 
   // mapel umum dari collection mapel_umum
   const [mapelUmumList, setMapelUmumList] = useState([]);
@@ -253,8 +254,8 @@ export default function InputNilaiUmumPage() {
 
         // update hanya field terkait mapel ini (nested + legacy flat)
         const updates = {
-          [`umum.${selectedMapelUmum}.nilai`] : numNilai,
-          [`umum.${selectedMapelUmum}.capaian`] : safeCapaian ?? "",
+          [`umum.${selectedMapelUmum}.nilai`]: numNilai,
+          [`umum.${selectedMapelUmum}.capaian`]: safeCapaian ?? "",
           [selectedMapelUmum]: numNilai, // legacy (kompatibel)
           [`capaian_${selectedMapelUmum}`]: safeCapaian ?? "", // legacy (kompatibel)
         };
@@ -290,8 +291,15 @@ export default function InputNilaiUmumPage() {
       })
       .map((r) => [r.nisn, r.nama_siswa, r.kelas, "", ""]);
 
+    // Tambahkan metadata supaya file terkunci ke mapel & kelas
+    const metaRows = [
+      ["MAPEL_UMUM", selectedMapelUmum || ""],
+      ["KELAS", selectedKelas || "ALL"],
+      [],
+    ];
+
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const ws = XLSX.utils.aoa_to_sheet([...metaRows, header, ...rows]);
     ws["!cols"] = [
       { wch: 16 },
       { wch: 28 },
@@ -368,11 +376,68 @@ export default function InputNilaiUmumPage() {
       return;
     }
 
-    // deteksi header
-    const header = rows[0].map((h) => String(h ?? "").trim());
+    // Baca metadata MAPEL_UMUM & KELAS (kalau ada) di beberapa baris awal
+    let mapelFromFile = "";
+    let kelasFromFile = "";
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const row = rows[i];
+      if (!row || row.length < 2) continue;
+      const key = String(row[0] ?? "").trim().toUpperCase();
+      const val = String(row[1] ?? "").trim();
+      if (key === "MAPEL_UMUM") {
+        mapelFromFile = val;
+      } else if (key === "KELAS") {
+        kelasFromFile = val;
+      }
+    }
+
+    // Cek kecocokan mapel
+    if (
+      mapelFromFile &&
+      selectedMapelUmum &&
+      mapelFromFile !== selectedMapelUmum
+    ) {
+      alert(
+        `File ini untuk mapel "${mapelFromFile}", sedangkan yang sedang dipilih adalah "${selectedMapelUmum}".\n\nImport dibatalkan agar tidak salah mapel.`
+      );
+      return;
+    }
+
+    // Cek kecocokan kelas (kecuali ALL)
+    if (
+      kelasFromFile &&
+      kelasFromFile !== "ALL" &&
+      selectedKelas &&
+      kelasFromFile !== selectedKelas
+    ) {
+      alert(
+        `File ini untuk kelas "${kelasFromFile}", sedangkan yang sedang dipilih adalah "${selectedKelas}".\n\nImport dibatalkan agar tidak salah kelas.`
+      );
+      return;
+    }
+
+    // Cari baris header yang berisi 'nisn'
+    let headerRowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      const headerNormLocal = row.map((h) => norm(h ?? ""));
+      if (headerNormLocal.includes("nisn")) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1) {
+      alert("Header wajib memuat kolom: nisn.");
+      return;
+    }
+
+    const header = rows[headerRowIndex].map((h) =>
+      String(h ?? "").trim()
+    );
     const headerNorm = header.map((h) => norm(h));
-    const hasHeader = headerNorm.includes("nisn");
-    const startIdx = hasHeader ? 1 : 0;
+    const startIdx = headerRowIndex + 1;
 
     // cari index kolom fleksibel
     const idxByName = (names) => {
@@ -480,7 +545,7 @@ export default function InputNilaiUmumPage() {
   /* ================== UI ================== */
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-0">
-    <div className="bg-white w-full min-h-screen px-3 py-4 md:px-6 md:py-8">
+      <div className="bg-white w-full min-h-screen px-3 py-4 md:px-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl md:text-3xl font-extrabold text-black">
             📘 Input Nilai — Mapel Umum
@@ -495,41 +560,148 @@ export default function InputNilaiUmumPage() {
           </button>
         </div>
 
-        {/* Toolbar atas */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <button
-            onClick={downloadTemplateXLSX}
-            className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
-          >
-            ⬇️ Download Template Excel
-          </button>
-          <button
-            onClick={downloadCurrentXLSX}
-            className="px-3 py-2 rounded-md text-sm bg-slate-700 text-white hover:bg-slate-600"
-          >
-            ⬇️ Download Data Saat Ini (Excel)
-          </button>
-          <button
-            onClick={triggerUpload}
-            className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
-          >
-            ⬆️ Import Data Excel
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-            className="hidden"
-            onChange={(e) => onUploadXLSX(e.target.files?.[0])}
-          />
+{/* Toolbar atas */}
+<div className="flex flex-wrap items-center gap-2 mb-4">
+  <button
+    onClick={downloadTemplateXLSX}
+    className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
+  >
+    ⬇️ Template Excel
+  </button>
 
-          {importInfo.rows > 0 && (
-            <span className="ml-auto text-sm text-slate-600">
-              Preview: {importInfo.rows} baris • Update: {importInfo.updated} •
-              Di-skip (NISN baru): {importInfo.skippedNew}
-            </span>
-          )}
-        </div>
+  <button
+    onClick={downloadCurrentXLSX}
+    className="px-3 py-2 rounded-md text-sm bg-slate-700 text-white hover:bg-slate-600"
+  >
+    ⬇️ Data Saat Ini 
+  </button>
+
+  <button
+    onClick={triggerUpload}
+    className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
+  >
+    ⬆️ Uploud Data 
+  </button>
+
+  <input
+    ref={fileInputRef}
+    type="file"
+    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+    className="hidden"
+    onChange={(e) => onUploadXLSX(e.target.files?.[0])}
+  />
+
+  {/* Tombol buka modal panduan */}
+  <button
+    onClick={() => setShowCapaianModal(true)}
+    className="px-3 py-2 rounded-md text-sm bg-blue-600 text-white hover:bg-blue-700"
+  >
+    📋 Panduan Pengisian Capaian Kompetensi
+  </button>
+
+  {importInfo.rows > 0 && (
+    <span className="ml-auto text-sm text-slate-600">
+      Preview: {importInfo.rows} baris • Update: {importInfo.updated} •
+      Di-skip (NISN baru): {importInfo.skippedNew}
+    </span>
+  )}
+</div>
+
+{showCapaianModal && (
+  <div
+    className="fixed inset-0 z-50 bg-white overflow-y-auto"
+    aria-modal="true"
+    role="dialog"
+  >
+    {/* HEADER */}
+    <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
+      <h2 className="text-lg font-semibold text-black">
+        📋 Panduan: Pengisian Capaian Kompetensi
+      </h2>
+
+      <button
+        onClick={() => setShowCapaianModal(false)}
+        className="p-2 rounded-md hover:bg-slate-100 text-slate-600"
+        aria-label="Tutup panduan"
+        type="button"
+      >
+        ✖
+      </button>
+    </div>
+
+    {/* BODY */}
+    <div className="px-4 py-4 text-sm text-slate-700 space-y-4 max-w-3xl mx-auto">
+
+      <p>
+        Isi <strong>kolom Capaian Kompetensi</strong> dengan ringkasan singkat
+        yang menggambarkan apa yang telah dikuasai siswa berdasarkan materi yang
+        dipelajari pada semester tersebut.
+      </p>
+
+      <p className="font-semibold">
+        1) Identifikasi materi yang sudah dipelajari siswa: (contoh Mapel TIK)
+      </p>
+      <ul className="list-disc ml-5 space-y-1">
+        <li>Memahami komponen hardware & software sistem komputer</li>
+        <li>Mengoperasikan dasar-dasar Excel termasuk rumus sederhana</li>
+        <li>Membuat surat resmi (format dasar dan struktur)</li>
+        <li>Memahami prinsip kerja jaringan (LAN, topologi dasar)</li>
+      </ul>
+
+      <p className="font-semibold">
+  2) Susun capaian kompetensi berdasarkan poin-poin tersebut:
+</p>
+
+<p>
+  <strong>
+    &quot;Siswa telah mampu memahami komponen hardware &amp; software, mengoperasikan
+    rumus dasar Excel, membuat surat resmi sederhana, serta memahami prinsip
+    kerja jaringan LAN.&quot;
+  </strong>
+</p>
+
+...
+
+<ul className="list-disc ml-5 space-y-1">
+  <li>
+    Nilai 85 — &quot;Telah mampu mengoperasikan rumus dasar &amp; format sel pada Excel.&quot;
+  </li>
+  <li>
+    Nilai 70 — &quot;Memahami konsep jaringan dan konfigurasi dasar, perlu praktik lebih lanjut.&quot;
+  </li>
+  <li>
+    Nilai 55 — &quot;Kurang dalam pemahaman komponen hardware; perlu bimbingan.&quot;
+  </li>
+</ul>
+
+      <p className="text-xs text-slate-500">
+        Tip: fokus pada hasil pembelajaran (apa yang bisa dilakukan siswa),
+        bukan aktivitas pembelajaran (apa yang dilakukan guru).
+      </p>
+
+      {/* FOOTER BUTTONS */}
+      <div className="mt-6 flex flex-col sm:flex-row sm:justify-end gap-2">
+        <button
+          onClick={() => setShowCapaianModal(false)}
+          className="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 text-white text-sm hover:bg-slate-700"
+        >
+          Tutup
+        </button>
+
+        <button
+          onClick={() => {
+            setShowCapaianModal(false);
+          }}
+          className="w-full sm:w-auto px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+        >
+          Mengerti
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
 
         {/* Tabel / List */}
         {loading ? (
@@ -614,25 +786,26 @@ export default function InputNilaiUmumPage() {
                           Nilai
                         </span>
                         <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={1}
-                          value={row.nilaiUmum ?? ""}
-                          onChange={(e) => {
-                            const v = clampScore(e.target.value);
-                            setDirty(true);
-                            setData((prev) =>
-                              prev.map((r) =>
-                                r.nisn === row.nisn
-                                  ? { ...r, nilaiUmum: v }
-                                  : r
-                              )
-                            );
-                          }}
-                          className="w-full border rounded-md px-2 py-1.5 text-xs text-black text-center focus:ring-2 focus:ring-purple-400"
-                          placeholder="0"
-                        />
+  type="number"
+  min={0}
+  max={100}
+  step={1}
+  value={row.nilaiUmum ?? ""}
+  onChange={(e) => {
+    const v = clampScore(e.target.value);
+    setDirty(true);
+    setData((prev) =>
+      prev.map((r) =>
+        r.nisn === row.nisn
+          ? { ...r, nilaiUmum: v }
+          : r
+      )
+    );
+  }}
+  onWheel={(e) => e.currentTarget.blur()} // ⛔ cegah scroll ubah nilai
+  className="w-full border rounded-md px-2 py-1.5 text-xs text-black text-center focus:ring-2 focus:ring-purple-400"
+  placeholder="0"
+/>
                       </div>
 
                       {/* Capaian Kompetensi di bawah Nilai */}
@@ -671,168 +844,182 @@ export default function InputNilaiUmumPage() {
             <div className="hidden md:block">
               <div className="overflow-x-auto rounded-2xl border border-gray-300/50 shadow-md">
                 <table className="w-full text-sm table-auto overflow-hidden rounded-2xl border border-gray-300/50">
-  <thead className="sticky top-0 z-10">
-    {/* Baris 1 */}
-    <tr className="bg-gradient-to-r from-indigo-200 to-purple-200 text-black text-xs">
-      <th className="p-1 w-[40px] border border-gray-300/50 text-center">
-        No
-      </th>
-      <th className="p-1 w-[80px] border border-gray-300/50 text-center">
-        NISN
-      </th>
-      <th className="p-1 w-[280px] border border-gray-300/50 text-center">
-        Nama
-      </th>
-      <th className="p-2 w-[60px] border border-gray-300/50 text-center">
-        Filter Kelas
-      </th>
-      <th
-        colSpan={2}
-        className="p-2 border border-gray-300/50 text-center"
-      >
-        INPUT NILAI MAPEL UMUM
-      </th>
-    </tr>
+                  <thead className="sticky top-0 z-10">
+                    {/* Baris 1 */}
+                    <tr className="bg-gradient-to-r from-indigo-200 to-purple-200 text-black text-xs">
+                      <th className="p-1 w-[40px] border border-gray-300/50 text-center">
+                        No
+                      </th>
+                      <th className="p-1 w-[80px] border border-gray-300/50 text-center">
+                        NISN
+                      </th>
+                      <th className="p-1 w-[280px] border border-gray-300/50 text-center">
+                        Nama
+                      </th>
+                      <th className="p-2 w-[60px] border border-gray-300/50 text-center">
+                        Filter Kelas
+                      </th>
+                      <th
+                        colSpan={2}
+                        className="p-2 border border-gray-300/50 text-center"
+                      >
+                        INPUT NILAI MAPEL UMUM
+                      </th>
+                    </tr>
 
-    {/* Baris 2 */}
-    <tr className="bg-gradient-to-r from-indigo-100 to-purple-100 text-black text-xs">
-      <th className="p-1 border border-gray-300/50" />
-      <th className="p-1 border border-gray-300/50" />
-      <th className="p-1 border border-gray-300/50" />
+                    {/* Baris 2 */}
+                    <tr className="bg-gradient-to-r from-indigo-100 to-purple-100 text-black text-xs">
+                      <th className="p-1 border border-gray-300/50" />
+                      <th className="p-1 border border-gray-300/50" />
+                      <th className="p-1 border border-gray-300/50" />
 
-      {/* Filter Kelas */}
-      <th className="p-2 w-[60px] border border-gray-300/50 text-center">
-        <select
-          value={selectedKelas}
-          onChange={(e) => handleChangeKelas(e.target.value)}
-          className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-purple-400"
-        >
-          {daftarKelas.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-      </th>
+                      {/* Filter Kelas */}
+                      <th className="p-2 w-[60px] border border-gray-300/50 text-center">
+                        <select
+                          value={selectedKelas}
+                          onChange={(e) =>
+                            handleChangeKelas(e.target.value)
+                          }
+                          className="w-full rounded-md bg-white text-black px-2 py-1 text-xs focus:ring-2 focus:ring-purple-400"
+                        >
+                          {daftarKelas.map((k) => (
+                            <option key={k} value={k}>
+                              {k}
+                            </option>
+                          ))}
+                        </select>
+                      </th>
 
-      {/* Dropdown Mapel umum - kolom NILAI (lebih kecil) */}
-      <th className="p-2 w-[80px] border border-gray-300/50 text-center">
-        <select
-          value={selectedMapelUmum}
-          onChange={(e) => handleChangeMapel(e.target.value)}
-          className="w-full rounded-md bg-white text-black px-2 py-1 text-[12px] focus:ring-2 focus:ring-purple-400"
-        >
-          {availableMapel.length === 0 ? (
-            <option value="">
-              {selectedKelas
-                ? `(tidak ada mapel untuk kelas ${selectedKelas})`
-                : "(tidak ada mapel)"}
-            </option>
-          ) : (
-            availableMapel.map((m) => (
-              <option key={m.id} value={m.nama}>
-                {m.nama}
-                {m.kelas && !selectedKelas ? ` - Kelas ${m.kelas}` : ""}
-              </option>
-            ))
-          )}
-        </select>
-      </th>
+                      {/* Dropdown Mapel umum - kolom NILAI (lebih kecil) */}
+                      <th className="p-2 w-[80px] border border-gray-300/50 text-center">
+                        <select
+                          value={selectedMapelUmum}
+                          onChange={(e) =>
+                            handleChangeMapel(e.target.value)
+                          }
+                          className="w-full rounded-md bg-white text-black px-2 py-1 text-[12px] focus:ring-2 focus:ring-purple-400"
+                        >
+                          {availableMapel.length === 0 ? (
+                            <option value="">
+                              {selectedKelas
+                                ? `(tidak ada mapel untuk kelas ${selectedKelas})`
+                                : "(tidak ada mapel)"}
+                            </option>
+                          ) : (
+                            availableMapel.map((m) => (
+                              <option key={m.id} value={m.nama}>
+                                {m.nama}
+                                {m.kelas && !selectedKelas
+                                  ? ` - Kelas ${m.kelas}`
+                                  : ""}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </th>
 
-      {/* Header Capaian Kompetensi - kolom lebar */}
-      <th className="p-2 w-[260px] border border-gray-300/50 text-center">
-        Capaian Kompetensi
-      </th>
-    </tr>
-  </thead>
+                      {/* Header Capaian Kompetensi - kolom lebar */}
+                      <th className="p-2 w-[260px] border border-gray-300/50 text-center">
+                        Capaian Kompetensi
+                      </th>
+                    </tr>
+                  </thead>
 
-  <tbody>
-    {visible.length === 0 ? (
-      <tr>
-        <td
-          colSpan={6}
-          className="p-8 text-center text-gray-500"
-        >
-          {availableMapel.length === 0
-            ? selectedKelas
-              ? `Tidak ada mapel umum untuk kelas ${selectedKelas}`
-              : "Tidak ada data mapel umum"
-            : "Tidak ada siswa yang sesuai dengan filter"}
-        </td>
-      </tr>
-    ) : (
-      visible.map((row, idx) => (
-        <tr
-          key={row.nisn || row.id || idx}
-          className={`transition hover:bg-purple-50 ${
-            idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-          }`}
-        >
-          <td className="p-1 text-center border border-gray-300/50 text-black">
-            {idx + 1}
-          </td>
-          <td
-            className="p-1 text-center border border-gray-300/50 text-black truncate"
-            title={row.nisn}
-          >
-            {row.nisn}
-          </td>
-          <td
-            className="p-1 border border-gray-300/50 text-black truncate"
-            title={row.nama_siswa}
-          >
-            {row.nama_siswa}
-          </td>
-          <td className="p-2 text-center border border-gray-300/50 text-black">
-            {row.kelas}
-          </td>
+                  <tbody>
+                    {visible.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="p-8 text-center text-gray-500"
+                        >
+                          {availableMapel.length === 0
+                            ? selectedKelas
+                              ? `Tidak ada mapel umum untuk kelas ${selectedKelas}`
+                              : "Tidak ada data mapel umum"
+                            : "Tidak ada siswa yang sesuai dengan filter"}
+                        </td>
+                      </tr>
+                    ) : (
+                      visible.map((row, idx) => (
+                        <tr
+                          key={row.nisn || row.id || idx}
+                          className={`transition hover:bg-purple-50 ${
+                            idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
+                        >
+                          <td className="p-1 text-center border border-gray-300/50 text-black">
+                            {idx + 1}
+                          </td>
+                          <td
+                            className="p-1 text-center border border-gray-300/50 text-black truncate"
+                            title={row.nisn}
+                          >
+                            {row.nisn}
+                          </td>
+                          <td
+                            className="p-1 border border-gray-300/50 text-black truncate"
+                            title={row.nama_siswa}
+                          >
+                            {row.nama_siswa}
+                          </td>
+                          <td className="p-2 text-center border border-gray-300/50 text-black">
+                            {row.kelas}
+                          </td>
 
-          {/* Kolom NILAI - sempit */}
-          <td className="p-2 w-[80px] text-center border border-gray-300/50 align-top">
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={row.nilaiUmum ?? ""}
-              onChange={(e) => {
-                const v = clampScore(e.target.value);
-                setDirty(true);
-                setData((prev) =>
-                  prev.map((r) =>
-                    r.nisn === row.nisn ? { ...r, nilaiUmum: v } : r
-                  )
-                );
-              }}
-              className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-purple-400 min-h-[60px]"
-              placeholder="0"
-            />
-          </td>
+                          {/* Kolom NILAI - sempit */}
+                          <td className="p-2 w-[80px] text-center border border-gray-300/50 align-top">
+                           <input
+  type="number"
+  min={0}
+  max={100}
+  step={1}
+  value={row.nilaiUmum ?? ""}
+  onChange={(e) => {
+    const v = clampScore(e.target.value);
+    setDirty(true);
+    setData((prev) =>
+      prev.map((r) =>
+        r.nisn === row.nisn
+          ? { ...r, nilaiUmum: v }
+          : r
+      )
+    );
+  }}
+  onWheel={(e) => e.currentTarget.blur()} // ⛔ cegah scroll ubah nilai
+  className="w-full border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-purple-400 min-h-[60px]"
+  placeholder="0"
+/>
 
-          {/* Kolom CAPAIAN - lebar */}
-          <td className="p-2 w-[260px] border border-gray-300/50 align-top">
-            <textarea
-              value={row.capaianUmum ?? ""}
-              onChange={(e) => {
-                const v = limitChars(e.target.value, 150);
-                setDirty(true);
-                setData((prev) =>
-                  prev.map((r) =>
-                    r.nisn === row.nisn ? { ...r, capaianUmum: v } : r
-                  )
-                );
-              }}
-              maxLength={150}
-              className="w-full h-[60px] border rounded-md px-2 py-2 text-sm text-black focus:ring-2 focus:ring-purple-400 shadow-sm resize-none"
-              placeholder="Tulis capaian kompetensi siswa (maks 150 karakter)"
-            />
-          </td>
-        </tr>
-      ))
-    )}
-  </tbody>
-</table>
+                          </td>
 
+                          {/* Kolom CAPAIAN - lebar */}
+                          <td className="p-2 w-[260px] border border-gray-300/50 align-top">
+                            <textarea
+                              value={row.capaianUmum ?? ""}
+                              onChange={(e) => {
+                                const v = limitChars(
+                                  e.target.value,
+                                  150
+                                );
+                                setDirty(true);
+                                setData((prev) =>
+                                  prev.map((r) =>
+                                    r.nisn === row.nisn
+                                      ? { ...r, capaianUmum: v }
+                                      : r
+                                  )
+                                );
+                              }}
+                              maxLength={150}
+                              className="w-full h-[60px] border rounded-md px-2 py-2 text-sm text-black focus:ring-2 focus:ring-purple-400 shadow-sm resize-none"
+                              placeholder="Tulis capaian kompetensi siswa (maks 150 karakter)"
+                            />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>

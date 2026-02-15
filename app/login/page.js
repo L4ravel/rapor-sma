@@ -13,54 +13,6 @@ async function sha256(text) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-/* ——— Banner Maintenance ——— */
-function MaintenanceBanner() {
-  const [hidden, setHidden] = useState(false);
-  if (hidden) return null;
-  return (
-    <div
-      role="alert"
-      aria-live="polite"
-      className="fixed top-0 left-0 right-0 z-50 select-none"
-    >
-      <div className="mx-auto max-w-6xl px-3">
-        <div className="mt-2 rounded-xl border border-amber-300/60 bg-amber-50/90 text-amber-900 shadow">
-          <div className="flex items-start gap-3 p-3 md:p-3.5">
-            {/* icon */}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 flex-none"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M11 7h2v6h-2V7zm0 8h2v2h-2v-2z"/><path d="M1 21h22L12 2 1 21z"/>
-            </svg>
-            <div className="text-sm md:text-[15px] leading-snug text-center">
-              <b>Sistem dalam perawatan (maintenance).</b> Untuk sementara, hanya fitur
-              <span className="font-semibold"> Sistem Rapor</span> yang tersedia. Halaman lain mungkin tidak dapat diakses.
-              <div className="text-[12px] md:text-[13px] text-amber-800/80 mt-0.5">
-                Login tetap dibuka untuk Guru/Admin; siswa bisa cek rapor lewat NISN.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setHidden(true)}
-              className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-lg hover:bg-amber-100/70 focus:outline-none focus:ring-2 focus:ring-amber-300"
-              aria-label="Tutup pemberitahuan maintenance"
-              title="Tutup"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.3 5.71 12 12.01l-6.29-6.3-1.41 1.42 6.29 6.29-6.3 6.29 1.42 1.41 6.29-6.29 6.29 6.3 1.41-1.42-6.29-6.29 6.3-6.29z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* elemen dekor lembut */
 function Deco({ className = "" }) {
   return (
@@ -137,9 +89,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-[#f5f3ff]">
-      {/* Banner Maintenance (tidak mempengaruhi login) */}
-      <MaintenanceBanner />
-
       {/* PANEL BACKGROUND besar — GRADIENT UNGU (seperti contoh) */}
       <div className="relative w-full max-w-6xl h-[560px] md:h-[520px] rounded-[28px] overflow-hidden shadow-2xl">
         {/* gradien ungu pekat */}

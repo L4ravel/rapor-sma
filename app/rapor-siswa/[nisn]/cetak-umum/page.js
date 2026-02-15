@@ -32,6 +32,18 @@ function normalizeNilai(v) {
   return String(v);
 }
 
+const FASE_E_KELAS = [
+  "10A1","10A2","10A3","10A4",
+  "10B1","10B2","10B3","10B4",
+];
+
+function resolveFase(kelas, faseDb) {
+  if (FASE_E_KELAS.includes(String(kelas || "").toUpperCase())) {
+    return "E";
+  }
+  return faseDb || "-";
+}
+
 function normalizeCapaian(v) {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
@@ -279,7 +291,7 @@ export default function CetakRaporUmum() {
           <div className="flex">
             <span className="w-32">Fase</span>
             <span className="w-4 text-center">:</span>
-            <span>{bio?.fase || "—"}</span>
+            <span>{resolveFase(biodata.kelas, bio?.fase || biodata.fase)}</span>
           </div>
           <div className="flex">
             <span className="w-32">Tahun Pelajaran</span>
@@ -368,8 +380,35 @@ export default function CetakRaporUmum() {
             </table>
           </div>
 
+  {/* TANDA TANGAN WALI KELAS — PRINT ONLY (SAMA TEMPLATE HALAMAN 2) */}
+<div className="hidden print:block mt-10">
+  <div className="overflow-x-auto print:overflow-visible">
+    <table className="w-full text-[11px] leading-tight">
+      <tbody>
+        <tr>
+          <td className="w-1/2" />
+          <td className="w-1/2 align-top p-2 text-right">
+            <div>{waktuPembagianRaport}</div>
+            <div>Wali Kelas,</div>
+
+            <div className="mt-16 inline-block text-left">
+              <div className="font-bold underline">
+                {formatNamaGelar(wali?.nama_wali)}
+              </div>
+              <div>NIP.</div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
           {/* Ekstrakurikuler */}
-          <div className="mt-3 overflow-x-auto print:overflow-visible">
+          <div className="mt-3 overflow-x-auto print:overflow-visible page-break-before">
+            <HeaderIdentitas />
+
+          <div className="hidden print:block mt-8" />
             <table className="w-full border border-black border-collapse text-[11px]">
               <thead className="bg-purple-100 font-bold">
                 <tr>
@@ -454,10 +493,8 @@ export default function CetakRaporUmum() {
         </div>
 
         {/* ========= HALAMAN 2 (TANDA TANGAN) ========= */}
-        <div className="p-4 print:p-6 page-break-before print:min-h-[297mm]">
-          <HeaderIdentitas />
-
-          <div className="mt-8" />
+        <div className="p-4 print:p-6 print:min-h-[297mm]">
+          
 
           <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-[11px] leading-tight">
@@ -499,10 +536,12 @@ export default function CetakRaporUmum() {
                         </div>
                       )}
 
-                      <div className="font-bold underline">
-                        {formatNamaGelar(bio?.kepala_sekolah)}
-                      </div>
-                      <div className="text-left">NIP.</div>
+                      <div className="inline-block text-left">
+  <div className="font-bold underline">
+    {formatNamaGelar(bio?.kepala_sekolah)}
+  </div>
+  <div>NIP.</div>
+</div>
                     </div>
                   </td>
                 </tr>

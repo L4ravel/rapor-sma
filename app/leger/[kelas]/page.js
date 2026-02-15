@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
 
+
+
+
 /* ===== Helpers ===== */
 const nonEmpty = (v) => !(v === undefined || v === null || String(v).trim() === "");
 const toNum = (v) => {
@@ -34,6 +37,110 @@ function appliesToClass(docData, kelas) {
     .filter(Boolean);
   return tokens.includes(String(kelas).trim());
 }
+
+import * as XLSX from "xlsx";
+
+function downloadXLS(filename, sheetName, rows) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+
+  // ===== HEADER =====
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+    if (!cell) continue;
+
+    cell.s = {
+      font: { bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
+      },
+    };
+  }
+
+  // ===== BODY =====
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (!cell) continue;
+
+      const isNumber = typeof cell.v === "number";
+
+      cell.s = {
+        alignment: {
+          horizontal: isNumber ? "center" : "left",
+          vertical: "center",
+        },
+        border: {
+          top: { style: "thin" },
+          bottom: { style: "thin" },
+          left: { style: "thin" },
+          right: { style: "thin" },
+        },
+        numFmt: isNumber ? "0" : undefined,
+      };
+    }
+  }
+
+  // ===== AUTO WIDTH =====
+  ws["!cols"] = rows[0].map((_, i) => ({
+    wch: Math.max(
+      ...rows.map((r) => String(r[i] ?? "").length),
+      10
+    ),
+  }));
+
+  // ===== FREEZE HEADER =====
+  ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename);
+}
+
+
+
+
+
+
+// --- safeKey & readers (cek original name + safeKey UPPERCASE) ---
+const safeKey = (name) =>
+  String(name || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "_") // 🔥 ini kuncinya
+    .replace(/_+/g, "_")
+    .trim();
+
+// baca flat value: coba r[orig], lalu r[SAFE]
+const readFlat = (rObj, mapelName) => {
+  if (!rObj) return undefined;
+
+  // 1. nama asli (jarang kepakai)
+  if (rObj[mapelName] !== undefined) return rObj[mapelName];
+
+  // 2. format Firestore kamu: Siroh_Tarikh
+  const key1 = mapelName.replace(/[^A-Za-z0-9]/g, "_");
+  if (rObj[key1] !== undefined) return rObj[key1];
+
+  // 3. fallback uppercase (jaga-jaga legacy)
+  const key2 = key1.toUpperCase();
+  if (rObj[key2] !== undefined) return rObj[key2];
+
+  return undefined;
+};
+
+// baca nested pondok: coba r.pondok[orig] lalu r.pondok[SAFE]
+const readPondok = (rObj, mapelName) => {
+  if (!rObj) return undefined;
+  const pondok = rObj.pondok || {};
+  if (pondok[mapelName] !== undefined) return pondok[mapelName];
+  const sk = safeKey(mapelName);
+  return pondok[sk];
+};
+
 function toCSV(rows) {
   return rows
     .map((r) =>
@@ -153,28 +260,59 @@ export default function LegerKelasPage() {
 
   /* ===== Hitung tabel dasar & METRIK sinkron (absensi, rerata, total, rank) ===== */
   const { tabelUmum, tabelPondok, metricsByNisn, rankByNisn } = useMemo(() => {
-    const getAvg = (r, cols) => {
-      const vals = cols
-        .map((name) => r?.[name])
-        .filter((v) => nonEmpty(v))
-        .map((v) => toNum(v))
-        .filter((n) => Number.isFinite(n));
-      if (!vals.length) return 0;
-      return vals.reduce((a, b) => a + b, 0) / vals.length;
-    };
+    const getAvg = (r, cols, isPondok = false) => {
+  const vals = cols
+    .map((name) => {
+      if (isPondok) {
+        // coba nested pondok (obj or value), lalu flat
+        const nested = readPondok(r, name);
+        if (nested !== undefined) {
+          // nested bisa berupa { nilai: 88 } atau langsung angka/string
+          if (nested && nested.hasOwnProperty("nilai")) return toNum(nested.nilai);
+          if (nonEmpty(nested)) return toNum(nested);
+        }
+        const flat = readFlat(r, name);
+        return nonEmpty(flat) ? toNum(flat) : NaN;
+      } else {
+        const flat = readFlat(r, name);
+        return nonEmpty(flat) ? toNum(flat) : NaN;
+      }
+    })
+    .filter((n) => Number.isFinite(n));
+  if (!vals.length) return 0;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+};
 
-    const makeRow = (s, i, cols) => {
-      const r = raporMap[s.nisn] || {};
-      return {
-        no: i + 1,
-        nisn: s.nisn || "",
-        nama: s.nama_siswa || "",
-        nilai: cols.map((mName) => (nonEmpty(r[mName]) ? r[mName] : "")),
-      };
-    };
+    const makeRow = (s, i, cols, isPondok = false) => {
+  const r = raporMap[s.nisn] || {};
+  const nilaiArr = cols.map((mName) => {
+    if (isPondok) {
+      // cek nested pondok (orig / safe)
+      const nested = readPondok(r, mName);
+      if (nested !== undefined) {
+        if (nested && nested.hasOwnProperty("nilai")) return nested.nilai;
+        if (nonEmpty(nested)) return nested;
+      }
+      
+      // fallback flat (orig / safe)
+      const flat = readFlat(r, mName);
+      return nonEmpty(flat) ? flat : "";
+    } else {
+      const flat = readFlat(r, mName);
+      return nonEmpty(flat) ? flat : "";
+    }
+  });
 
-    const tUmum = siswa.map((s, i) => makeRow(s, i, umumCols));
-    const tPondok = siswa.map((s, i) => makeRow(s, i, pondokCols));
+  return {
+    no: i + 1,
+    nisn: s.nisn || "",
+    nama: s.nama_siswa || "",
+    nilai: nilaiArr,
+  };
+};
+
+    const tUmum = siswa.map((s, i) => makeRow(s, i, umumCols, false));
+const tPondok = siswa.map((s, i) => makeRow(s, i, pondokCols, true));
 
     const metrics = {};
     siswa.forEach((s) => {
@@ -182,8 +320,8 @@ export default function LegerKelasPage() {
       const sakit = toNum(r.sakit);
       const izin  = toNum(r.izin);
       const alpha = toNum(r.alpha);
-      const avgUmum   = umumCols.length   ? getAvg(r, umumCols)   : 0;
-      const avgPondok = pondokCols.length ? getAvg(r, pondokCols) : 0;
+      const avgUmum   = umumCols.length   ? getAvg(r, umumCols, false) : 0;
+const avgPondok = pondokCols.length ? getAvg(r, pondokCols, true)  : 0;
 
       metrics[s.nisn] = {
         absensi: `${sakit}/${izin}/${alpha}`,
@@ -221,7 +359,11 @@ export default function LegerKelasPage() {
         rankByNisn[row.nisn] ?? "",
       ];
     });
-    download(`leger-umum-${kelas}.csv`, toCSV([header, ...rows]));
+    downloadXLS(
+  `leger-umum-${kelas}.xlsx`,
+  "Leger Umum",
+  [header, ...rows]
+);
   };
   const downloadPondok = () => {
     const header = ["No", "NISN", "Nama", ...pondokCols, "Absensi (S/I/A)", "Rerata Umum", "Rerata Pondok", "Jumlah", "Rangking"];
@@ -239,7 +381,11 @@ export default function LegerKelasPage() {
         rankByNisn[row.nisn] ?? "",
       ];
     });
-    download(`leger-pondok-${kelas}.csv`, toCSV([header, ...rows]));
+    downloadXLS(
+  `leger-pondok-${kelas}.xlsx`,
+  "Leger Pondok",
+  [header, ...rows]
+);
   };
 
   /* ===== Print handlers ===== */
@@ -304,22 +450,35 @@ export default function LegerKelasPage() {
             <Section
               title="📘 Leger Nilai Umum"
               right={
-                <>
-                  <button
-                    onClick={() => printAll("umum")}
-                    className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
-                    disabled={!siswa.length}
-                  >
-                    Print Semua
-                  </button>
-                  <button
-                    onClick={downloadUmum}
-                    className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
-                    disabled={umumCols.length === 0}
-                  >
-                    Download CSV
-                  </button>
-                </>
+  <>
+    {/* CETAK COVER */}
+    <button
+      onClick={() =>
+        window.open(`/cover/${encodeURIComponent(kelas)}`, "_blank")
+      }
+      className="px-3 py-2 rounded-md text-sm bg-blue-500 text-white hover:bg-blue-600"
+    >
+      Cetak Cover
+    </button>
+
+    {/* PRINT SEMUA MAPEL UMUM */}
+    <button
+      onClick={() => printAll("umum")}
+      className="px-3 py-2 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
+      disabled={!siswa.length}
+    >
+      Print Semua
+    </button>
+
+    {/* DOWNLOAD EXCEL */}
+    <button
+      onClick={downloadUmum}
+      className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
+      disabled={umumCols.length === 0}
+    >
+      Download Excel
+    </button>
+  </>
               }
             >
               {umumCols.length === 0 ? (
@@ -349,36 +508,46 @@ export default function LegerKelasPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {tabelUmum.map((row, i) => {
-                        const m = metricsByNisn[row.nisn] || {};
-                        return (
-                          <tr key={`ru-${i}`} className={i % 2 ? "bg-white" : "bg-slate-50/50"}>
-                            <td className={`${tdBase} text-center`}>{row.no}</td>
-                            <td className={tdBase}>{row.nisn}</td>
-                            <td className={tdNama}>{row.nama}</td>
-                            {row.nilai.map((v, j) => (
-                              <td key={`rvu-${i}-${j}`} className={tdMapel}>
-                                {v}
-                              </td>
-                            ))}
-                            <td className={tdAbs}>{m.absensi || "0/0/0"}</td>
-                            <td className={tdAvg}>{(m.avgUmum ?? 0).toFixed(1)}</td>
-                            <td className={tdAvg}>{(m.avgPondok ?? 0).toFixed(1)}</td>
-                            <td className={tdTot}>{(m.total ?? 0).toFixed(1)}</td>
-                            <td className={tdRank}>{rankByNisn[row.nisn] ?? ""}</td>
-                            <td className={tdPrint}>
-                              <button
-                                onClick={() => printOne(row.nisn, "umum")}
-                                className="px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
-                                title="Cetak Rapor Umum"
-                              >
-                                Print
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
+  {tabelUmum
+    .slice()
+    .sort(
+      (a, b) =>
+        (rankByNisn[a.nisn] ?? 9999) - (rankByNisn[b.nisn] ?? 9999)
+    )
+    .map((row, i) => {
+      const m = metricsByNisn[row.nisn] || {};
+      return (
+        <tr
+          key={`ru-${i}`}
+          className={i % 2 ? "bg-white" : "bg-slate-50/50"}
+        >
+          {/* No sekarang ikut urutan ranking */}
+          <td className={`${tdBase} text-center`}>{i + 1}</td>
+          <td className={tdBase}>{row.nisn}</td>
+          <td className={tdNama}>{row.nama}</td>
+          {row.nilai.map((v, j) => (
+            <td key={`rvu-${i}-${j}`} className={tdMapel}>
+              {v}
+            </td>
+          ))}
+          <td className={tdAbs}>{m.absensi || "0/0/0"}</td>
+          <td className={tdAvg}>{(m.avgUmum ?? 0).toFixed(1)}</td>
+          <td className={tdAvg}>{(m.avgPondok ?? 0).toFixed(1)}</td>
+          <td className={tdTot}>{(m.total ?? 0).toFixed(1)}</td>
+          <td className={tdRank}>{rankByNisn[row.nisn] ?? ""}</td>
+          <td className={tdPrint}>
+            <button
+              onClick={() => printOne(row.nisn, "umum")}
+              className="px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
+              title="Cetak Rapor Umum"
+            >
+              Print
+            </button>
+          </td>
+        </tr>
+      );
+    })}
+</tbody>
                   </table>
                 </div>
               )}
@@ -402,7 +571,7 @@ export default function LegerKelasPage() {
                     className="px-3 py-2 rounded-md text-sm bg-slate-900 text-white hover:bg-slate-800"
                     disabled={pondokCols.length === 0}
                   >
-                    Download CSV
+                    Download Excel
                   </button>
                 </>
               }
@@ -434,36 +603,47 @@ export default function LegerKelasPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {tabelPondok.map((row, i) => {
-                        const m = metricsByNisn[row.nisn] || {};
-                        return (
-                          <tr key={`rp-${i}`} className={i % 2 ? "bg-white" : "bg-slate-50/50"}>
-                            <td className={`${tdBase} text-center`}>{row.no}</td>
-                            <td className={tdBase}>{row.nisn}</td>
-                            <td className={tdNama}>{row.nama}</td>
-                            {row.nilai.map((v, j) => (
-                              <td key={`rvp-${i}-${j}`} className={tdMapel}>
-                                {v}
-                              </td>
-                            ))}
-                            <td className={tdAbs}>{m.absensi || "0/0/0"}</td>
-                            <td className={tdAvg}>{(m.avgUmum ?? 0).toFixed(1)}</td>
-                            <td className={tdAvg}>{(m.avgPondok ?? 0).toFixed(1)}</td>
-                            <td className={tdTot}>{(m.total ?? 0).toFixed(1)}</td>
-                            <td className={tdRank}>{rankByNisn[row.nisn] ?? ""}</td>
-                            <td className={tdPrint}>
-                              <button
-                                onClick={() => printOne(row.nisn, "pondok")}
-                                className="px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
-                                title="Cetak Rapor Pondok"
-                              >
-                                Print
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
+  {tabelPondok
+    .slice()
+    .sort(
+      (a, b) =>
+        (rankByNisn[a.nisn] ?? 9999) - (rankByNisn[b.nisn] ?? 9999)
+    )
+    .map((row, i) => {
+      const m = metricsByNisn[row.nisn] || {};
+      return (
+        <tr
+          key={`rp-${i}`}
+          className={i % 2 ? "bg-white" : "bg-slate-50/50"}
+        >
+          {/* No ikut urutan ranking */}
+          <td className={`${tdBase} text-center`}>{i + 1}</td>
+          <td className={tdBase}>{row.nisn}</td>
+          <td className={tdNama}>{row.nama}</td>
+          {row.nilai.map((v, j) => (
+            <td key={`rvp-${i}-${j}`} className={tdMapel}>
+              {v}
+            </td>
+          ))}
+          <td className={tdAbs}>{m.absensi || "0/0/0"}</td>
+          <td className={tdAvg}>{(m.avgUmum ?? 0).toFixed(1)}</td>
+          <td className={tdAvg}>{(m.avgPondok ?? 0).toFixed(1)}</td>
+          <td className={tdTot}>{(m.total ?? 0).toFixed(1)}</td>
+          <td className={tdRank}>{rankByNisn[row.nisn] ?? ""}</td>
+          <td className={tdPrint}>
+            <button
+              onClick={() => printOne(row.nisn, "pondok")}
+              className="px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
+              title="Cetak Rapor Pondok"
+            >
+              Print
+            </button>
+          </td>
+        </tr>
+      );
+    })}
+</tbody>
+
                   </table>
                 </div>
               )}

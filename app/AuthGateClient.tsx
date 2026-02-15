@@ -9,6 +9,7 @@ const PUBLIC_ROUTES: (string | RegExp)[] = [
   "/login",
   "/rapor-siswa",
   "/siswa",
+  "/flyer",
   /^\/_next\//,
   /^\/favicon\.ico$/,
   /^\/api\//,

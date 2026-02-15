@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { collection, doc, getDocs, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
+import * as XLSX from "xlsx";
 
 export default function InputTahfidzPage() {
   const [data, setData] = useState([]);
@@ -112,13 +113,124 @@ export default function InputTahfidzPage() {
     }
   };
 
+  // Download Template Excel
+  const handleDownloadTemplate = () => {
+    const templateData = filtered.map((row, idx) => ({
+      No: idx + 1,
+      NISN: row.nisn,
+      "Nama Siswa": row.nama_siswa,
+      Kelas: row.kelas,
+      "Total Juz": "",
+      "Target (lembar)": "",
+      "Tercapai (lembar)": "",
+      Keterangan: "",
+      Nilai: "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template Tahfidz");
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 5 },  // No
+      { wch: 15 }, // NISN
+      { wch: 30 }, // Nama Siswa
+      { wch: 10 }, // Kelas
+      { wch: 12 }, // Total Juz
+      { wch: 15 }, // Target
+      { wch: 15 }, // Tercapai
+      { wch: 40 }, // Keterangan
+      { wch: 10 }, // Nilai
+    ];
+
+    XLSX.writeFile(wb, `Template_Tahfidz_${selectedKelas}.xlsx`);
+  };
+
+  // Download Data yang Sudah Ada
+  const handleDownloadExisting = () => {
+    const exportData = filtered.map((row, idx) => ({
+      No: idx + 1,
+      NISN: row.nisn,
+      "Nama Siswa": row.nama_siswa,
+      Kelas: row.kelas,
+      "Total Juz": row.tahfidz_total_juz || 0,
+      "Target (lembar)": row.tahfidz_target_lembar || 0,
+      "Tercapai (lembar)": row.tahfidz_tercapai_lembar || 0,
+      Keterangan: row.tahfidz_keterangan || "",
+      Nilai: row.tahfidz_nilai || 0,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Tahfidz");
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 5 },  // No
+      { wch: 15 }, // NISN
+      { wch: 30 }, // Nama Siswa
+      { wch: 10 }, // Kelas
+      { wch: 12 }, // Total Juz
+      { wch: 15 }, // Target
+      { wch: 15 }, // Tercapai
+      { wch: 40 }, // Keterangan
+      { wch: 10 }, // Nilai
+    ];
+
+    XLSX.writeFile(wb, `Data_Tahfidz_${selectedKelas}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // Import Excel
+  const handleImportExcel = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const workbook = XLSX.read(event.target?.result, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const importedData = XLSX.utils.sheet_to_json(sheet);
+
+        // Map imported data ke state
+        setData((prevData) =>
+          prevData.map((row) => {
+            const match = importedData.find(
+              (imp) => String(imp.NISN) === String(row.nisn)
+            );
+            if (match) {
+              return {
+                ...row,
+                tahfidz_total_juz: match["Total Juz"] ?? row.tahfidz_total_juz,
+                tahfidz_target_lembar: match["Target (lembar)"] ?? row.tahfidz_target_lembar,
+                tahfidz_tercapai_lembar: match["Tercapai (lembar)"] ?? row.tahfidz_tercapai_lembar,
+                tahfidz_keterangan: match["Keterangan"] ?? row.tahfidz_keterangan,
+                tahfidz_nilai: match["Nilai"] ?? row.tahfidz_nilai,
+              };
+            }
+            return row;
+          })
+        );
+
+        alert("✅ Data berhasil diimport dari Excel!");
+      } catch (error) {
+        console.error(error);
+        alert("⚠️ Gagal mengimport file Excel. Pastikan format file sesuai.");
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = ""; // Reset input
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-6 md:p-10">
       <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl md:text-3xl font-extrabold text-black">
-            📖 Input Penilaian Hafalan Al-Qur’an
+            📖 Input Penilaian Hafalan Al-Qur'an
           </h1>
           <div className="flex items-center gap-3">
             <Link
@@ -128,6 +240,33 @@ export default function InputTahfidzPage() {
               ← Kembali ke Input Nilai
             </Link>
           </div>
+        </div>
+
+        {/* Tombol Excel */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button
+            onClick={handleDownloadTemplate}
+            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg shadow hover:from-blue-600 hover:to-blue-700 transition text-sm font-semibold"
+          >
+            📥 Download Template
+          </button>
+          
+          <label className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg shadow hover:from-purple-600 hover:to-purple-700 transition text-sm font-semibold cursor-pointer">
+            📤 Import Excel
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportExcel}
+              className="hidden"
+            />
+          </label>
+
+          <button
+            onClick={handleDownloadExisting}
+            className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg shadow hover:from-green-600 hover:to-green-700 transition text-sm font-semibold"
+          >
+            💾 Download Data
+          </button>
         </div>
 
         {loading ? (
@@ -140,20 +279,20 @@ export default function InputTahfidzPage() {
                 <table className="w-full text-sm table-fixed overflow-hidden rounded-2xl border border-gray-300/50">
                   {/* Atur lebar kolom di sini */}
                   <colgroup>
-                    <col className="w-[60px]" />   {/* No */}
-                    <col className="w-[130px]" />  {/* NISN */}
-                    <col className="w-[260px]" />  {/* Nama */}
-                    <col className="w-[120px]" />  {/* Kelas */}
-                    <col className="w-[90px]" />   {/* Total Juz */}
-                    <col className="w-[110px]" />  {/* Target */}
-                    <col className="w-[110px]" />  {/* Tercapai */}
-                    <col className="w-[430px]" />  {/* Keterangan (PALING BESAR) */}
-                    <col className="w-[80px]" />   {/* Nilai */}
+                    <col className="w-[60px]" />
+                    <col className="w-[130px]" />
+                    <col className="w-[260px]" />
+                    <col className="w-[120px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[430px]" />
+                    <col className="w-[80px]" />
                   </colgroup>
 
                   <thead className="sticky top-0 z-10">
                     {/* Baris 1 */}
-                    <tr className="bg-gradient-to-r from-sky-200 to-indigo-200 text-black text-xs">
+                    <tr className="bg-gradient.to-r from-sky-200 to-indigo-200 text-black text-xs">
                       <th
                         rowSpan={2}
                         className="p-1 border border-gray-300/50 text-center"
@@ -179,12 +318,12 @@ export default function InputTahfidzPage() {
                         colSpan={5}
                         className="p-2 border border-gray-300/50 text-center"
                       >
-                        Penilaian Hafalan Al-Qur’an
+                        Penilaian Hafalan Al-Qur'an
                       </th>
                     </tr>
 
                     {/* Baris 2 */}
-                    <tr className="bg-gradient-to-r from-sky-100 to-indigo-100 text-black text-xs">
+                    <tr className="bg-gradient.to-r from-sky-100 to-indigo-100 text-black text-xs">
                       <th className="p-2 border border-gray-300/50 text-center">
                         <select
                           value={selectedKelas}
@@ -263,6 +402,7 @@ export default function InputTahfidzPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                             placeholder="0"
                           />
@@ -286,6 +426,7 @@ export default function InputTahfidzPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                             placeholder="0"
                           />
@@ -310,6 +451,7 @@ export default function InputTahfidzPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                             placeholder="0"
                           />
@@ -356,6 +498,7 @@ export default function InputTahfidzPage() {
                                 )
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-[52px] border rounded-md px-2 py-2 text-xs text-black text-center focus:ring-2 focus:ring-sky-400"
                             placeholder="0-100"
                           />
@@ -453,6 +596,7 @@ export default function InputTahfidzPage() {
                                   )
                                 )
                               }
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
                               placeholder="0"
                             />
@@ -478,6 +622,7 @@ export default function InputTahfidzPage() {
                                   )
                                 )
                               }
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
                               placeholder="0"
                             />
@@ -504,6 +649,7 @@ export default function InputTahfidzPage() {
                                   )
                                 )
                               }
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full rounded-md border border-slate-300 px-2 py-1 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
                               placeholder="0"
                             />
@@ -532,6 +678,7 @@ export default function InputTahfidzPage() {
                               )
                             )
                           }
+                          onWheel={(e) => e.currentTarget.blur()}
                           className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-[11px] text-black text-center focus:ring-2 focus:ring-sky-400"
                           placeholder="0-100"
                         />

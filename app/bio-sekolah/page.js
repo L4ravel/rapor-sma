@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-/* ---------- UI helper: Section Card ---------- */
+/* ---------- UI helper: Section Card --------tgggsgs-- */
 function SectionCard({ title, children }) {
   return (
     <div className="relative bg-white/95 border border-slate-200 rounded-3xl shadow-md overflow-hidden">

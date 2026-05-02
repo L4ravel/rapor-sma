@@ -1,3 +1,5 @@
+/* Halaman menu utama dengan kategori berbasis akses email, ditambah card Pengumuman Kelulusan khusus admin. */
+
 "use client";
 
 import Link from "next/link";
@@ -32,6 +34,7 @@ function Icon({ name, className }) {
     chevronDown:
       "M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z",
   };
+
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
       <path d={d[name]} />
@@ -70,6 +73,7 @@ const CATEGORIES = [
       { href: "/input-siswa", label: "Input Siswa", icon: "userPlus" },
       { href: "/input-mapel", label: "Input Mapel", icon: "book" },
       { href: "/input-wali", label: "Input Wali", icon: "users" },
+      { href: "/kelulusan", label: "Pengumuman Kelulusan", icon: "cap" },
     ],
   },
   {
@@ -77,8 +81,7 @@ const CATEGORIES = [
     label: "Wali Kelas",
     description: "Menu harian wali kelas.",
     actions: [
-      { href: "/absensi-siswa", label: "Absensi Siswa", icon: "calendar" },  
-
+      { href: "/absensi-siswa", label: "Absensi Siswa", icon: "calendar" },
       { href: "/siswa", label: "Lihat Rapor", icon: "cap" },
       { href: "/preview-nilai", label: "Cetak Rapor", icon: "chart" },
     ],
@@ -100,24 +103,24 @@ function getAllowedCategoryIdsByEmail(emailRaw) {
   const email = (emailRaw || "").toLowerCase().trim();
 
   // ===== ADMIN =====
-  if (email === "admin@smpia.com" || email === "admin@smaia.com" || email === "usmanirawan00@gmail.com") {
-    // admin boleh semua
+  if (
+    email === "admin@smpia.com" ||
+    email === "admin@smaia.com" ||
+    email === "usmanirawan00@gmail.com"
+  ) {
     return ["admin", "wali", "guru"];
   }
 
   // ===== WALI KELAS =====
   if (email === "walikelas@smpia.com" || email === "walikelas@smaia.com") {
-    // wali kelas boleh wali + guru
     return ["wali", "guru"];
   }
 
   // ===== GURU =====
   if (email === "guru@smpia.com" || email === "guru@smaia.com") {
-    // guru hanya kategori guru
     return ["guru"];
   }
 
-  // email lain: tidak ada kategori (bisa kamu ubah kalau mau)
   return [];
 }
 
@@ -131,9 +134,7 @@ export default function Home() {
   useEffect(() => {
     const auth = getAuth();
     const local =
-      typeof window !== "undefined"
-        ? localStorage.getItem("appUser")
-        : null;
+      typeof window !== "undefined" ? localStorage.getItem("appUser") : null;
 
     if (local) {
       const u = JSON.parse(local);
@@ -149,7 +150,9 @@ export default function Home() {
         router.replace("/login");
         return;
       }
+
       setUser(u);
+
       try {
         const qy = query(
           collection(db, "users_app"),
@@ -163,8 +166,10 @@ export default function Home() {
       } catch {
         setRole(null);
       }
+
       setInitializing(false);
     });
+
     return () => unsub();
   }, [router]);
 
@@ -198,7 +203,6 @@ export default function Home() {
     setOpenCategory((prev) => (prev === id ? null : id));
   };
 
-  // 🔐 Filter kategori berdasarkan email user
   const userEmail = user?.email || "";
   const allowedCategoryIds = getAllowedCategoryIdsByEmail(userEmail);
   const visibleCategories = CATEGORIES.filter((cat) =>
@@ -208,11 +212,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-100 px-4 py-8">
       <div className="relative w-full max-w-3xl mx-auto">
-        {/* Glow effect */}
         <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-blue-400/20 via-slate-400/10 to-purple-400/20 blur-3xl" />
 
         <div className="relative rounded-[32px] bg-white ring-1 ring-slate-300/50 shadow-2xl shadow-slate-900/10 p-6 sm:p-8 md:p-10">
-          {/* Header */}
           <div className="flex items-start justify-between gap-4 pb-6 border-b border-slate-100">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-blue-50 to-slate-50 ring-1 ring-blue-100 mb-3">
@@ -221,13 +223,16 @@ export default function Home() {
                   Dashboard Aktif
                 </span>
               </div>
+
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-br from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent">
                 Menu Utama
               </h2>
+
               <p className="mt-2.5 text-slate-600 text-xs sm:text-sm leading-relaxed max-w-lg">
-                Pilih kategori sesuai peran Anda. Klik kategori untuk
-                menampilkan menu yang tersedia.
+                Pilih kategori sesuai peran Anda. Klik kategori untuk menampilkan
+                menu yang tersedia.
               </p>
+
               {user && (
                 <div className="mt-3 flex items-center gap-2 text-[11px] sm:text-xs text-slate-500">
                   <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-100 to-slate-100 grid place-items-center ring-2 ring-white">
@@ -246,6 +251,7 @@ export default function Home() {
                 </div>
               )}
             </div>
+
             {user && (
               <button
                 onClick={handleLogout}
@@ -261,7 +267,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* Accordion kategori */}
           <div className="mt-6 space-y-4">
             {visibleCategories.length === 0 && (
               <div className="text-center text-xs sm:text-sm text-slate-500 py-6">
@@ -271,12 +276,12 @@ export default function Home() {
 
             {visibleCategories.map((cat) => {
               const isOpen = openCategory === cat.id;
+
               return (
                 <div
                   key={cat.id}
                   className="group rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5 hover:shadow-xl hover:shadow-slate-900/10 transition-all duration-300"
                 >
-                  {/* Header kategori */}
                   <button
                     type="button"
                     onClick={() => toggleCategory(cat.id)}
@@ -299,6 +304,7 @@ export default function Home() {
                           }`}
                         />
                       </div>
+
                       <div className="flex flex-col items-start text-left">
                         <span
                           className={`text-sm sm:text-base font-bold transition-colors duration-300 ${
@@ -314,6 +320,7 @@ export default function Home() {
                         </span>
                       </div>
                     </div>
+
                     <div
                       className={`h-8 w-8 rounded-lg grid place-items-center transition-all duration-300 ${
                         isOpen
@@ -332,7 +339,6 @@ export default function Home() {
                     </div>
                   </button>
 
-                  {/* Isi kategori */}
                   {isOpen && (
                     <div className="px-4 pb-4 sm:px-6 sm:pb-6 animate-in slide-in-from-top-2 duration-300 border-t border-slate-100">
                       <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">

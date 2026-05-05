@@ -454,7 +454,7 @@ export default function PrintKelulusanPage() {
                   <td className="align-top"></td>
                   <td className="w-[30%] align-top">
                     <div className="relative ml-auto h-[170px] w-[320px]">
-                      <div className="absolute left-10 top-0 z-20 min-w-[180px] text-left">
+                      <div className="absolute left-10 bottom-8 z-20 min-w-[180px] text-left">
                         <p>
                           {tempatSurat}, {tanggalSurat}
                         </p>
@@ -462,6 +462,9 @@ export default function PrintKelulusanPage() {
 
                         <div className="mt-10">
                           <u>
+                            <br />
+                            <br />   
+                                 <br />                                             
                             <b>{kepalaSekolah}</b>
                           </u>
                           <br />

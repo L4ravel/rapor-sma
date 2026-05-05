@@ -8,6 +8,7 @@ import { auth } from "@/lib/firebaseConfig";
 const PUBLIC_ROUTES: (string | RegExp)[] = [
   "/login",
   "/rapor-siswa",
+  "/kelulusan/print",
   "/siswa",
   "/flyer",
   /^\/_next\//,

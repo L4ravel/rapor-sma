@@ -211,7 +211,7 @@ export default function PrintKelulusanPage() {
   const npsn = info?.npsn || siswa?.npsn || "-";
   const jurusan = info?.jurusan || siswa?.programJurusanNama || "-";
 
-  const nomorSurat = info?.nomorSurat || "033/SMA-IA/E/V/2026";
+  const nomorSurat = info?.nomorSurat || "421.3/063/SMA-IA/E/V/2026";
   const tanggalSurat = formatTanggalIndonesia(info?.tanggalSurat) || "5 Mei 2026";
   const tempatSurat = info?.tempatSurat || "Bagek Nyaka";
   const kepalaSekolah =

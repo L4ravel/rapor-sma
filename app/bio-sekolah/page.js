@@ -10,11 +10,11 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-/* ---------- UI helper: Section Card --------tgggsgs-- */
+/* ---------- UI helper: Section Card ---------- */
 function SectionCard({ title, children }) {
   return (
-    <div className="relative bg-white/95 border border-slate-200 rounded-3xl shadow-md overflow-hidden">
-      <div className="bg-slate-900 text-white w-full px-6 py-3 text-sm md:text-base font-semibold tracking-wide rounded-t-3xl">
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/95 shadow-md">
+      <div className="w-full rounded-t-3xl bg-slate-900 px-6 py-3 text-sm font-semibold tracking-wide text-white md:text-base">
         {title}
       </div>
       <div className="p-6">{children}</div>
@@ -26,24 +26,22 @@ export default function BioSekolahPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // data form yang akan disimpan ke Firestore
   const [form, setForm] = useState({
     nama_sekolah: "",
     alamat: "",
-    // semester & tahun pelajaran (umum + arab)
     semesterUmum: "",
     semesterArab: "",
     tahunPelajaranUmum: "",
     tahunPelajaranArab: "",
     fase: "",
     kepala_sekolah: "",
-    kepala_sekolah_ttd: "", // URL tanda tangan di Storage
-    // baru: waktu pembagian raport & kop rapor
+    kepala_sekolah_ttd: "",
     waktuPembagianRaport: "",
     kopRaporUrl: "",
+    kopKelulusanUrl: "",
+    ttdKelulusanUrl: "",
   });
 
-  // data preview tampilan
   const [preview, setPreview] = useState({
     nama_sekolah: "",
     alamat: "",
@@ -56,20 +54,25 @@ export default function BioSekolahPage() {
     kepala_sekolah_ttd: "",
     waktuPembagianRaport: "",
     kopRaporUrl: "",
+    kopKelulusanUrl: "",
+    ttdKelulusanUrl: "",
     updatedAt: null,
   });
 
-  // file tanda tangan yang baru dipilih (belum di-upload)
   const [ttdFile, setTtdFile] = useState(null);
   const [localTTDPreview, setLocalTTDPreview] = useState("");
 
-  // file kop rapor yang baru dipilih (belum di-upload)
   const [kopRaporFile, setKopRaporFile] = useState(null);
   const [localKopRaporPreview, setLocalKopRaporPreview] = useState("");
 
-  const refBio = doc(db, "bio_sekolah", "default"); // single doc pusat
+  const [kopKelulusanFile, setKopKelulusanFile] = useState(null);
+  const [localKopKelulusanPreview, setLocalKopKelulusanPreview] = useState("");
 
-  /* -------- Load data on mount -------- */
+  const [ttdKelulusanFile, setTtdKelulusanFile] = useState(null);
+  const [localTTDKelulusanPreview, setLocalTTDKelulusanPreview] = useState("");
+
+  const refBio = doc(db, "bio_sekolah", "default");
+
   useEffect(() => {
     const run = async () => {
       try {
@@ -88,7 +91,10 @@ export default function BioSekolahPage() {
             kepala_sekolah_ttd: d.kepala_sekolah_ttd || "",
             waktuPembagianRaport: d.waktuPembagianRaport || "",
             kopRaporUrl: d.kopRaporUrl || "",
+            kopKelulusanUrl: d.kopKelulusanUrl || "",
+            ttdKelulusanUrl: d.ttdKelulusanUrl || "",
           });
+
           setPreview({
             nama_sekolah: d.nama_sekolah || "",
             alamat: d.alamat || "",
@@ -101,6 +107,8 @@ export default function BioSekolahPage() {
             kepala_sekolah_ttd: d.kepala_sekolah_ttd || "",
             waktuPembagianRaport: d.waktuPembagianRaport || "",
             kopRaporUrl: d.kopRaporUrl || "",
+            kopKelulusanUrl: d.kopKelulusanUrl || "",
+            ttdKelulusanUrl: d.ttdKelulusanUrl || "",
             updatedAt: d.updatedAt || d.createdAt || null,
           });
         }
@@ -111,38 +119,44 @@ export default function BioSekolahPage() {
         setLoading(false);
       }
     };
+
     run();
   }, []);
 
-  /* -------- Handlers -------- */
   const onChange = (e) => {
     const { name, value } = e.target;
     setForm((p) => ({ ...p, [name]: value }));
   };
 
-  // pilih file tanda tangan kepala sekolah
-  const onTtdChange = (e) => {
-    const file = e.target.files?.[0];
+  const handleImageSelect = ({
+    event,
+    setFile,
+    setPreviewUrl,
+    maxSizeMb,
+    errorLabel,
+  }) => {
+    const file = event.target.files?.[0];
     if (!file) {
-      setTtdFile(null);
-      setLocalTTDPreview("");
+      setFile(null);
+      setPreviewUrl("");
       return;
     }
 
     if (!file.type.startsWith("image/")) {
-      alert("❌ File harus berupa gambar (jpg, png, dsb.)");
-      return;
-    }
-    const maxSize = 1024 * 1024; // 1MB
-    if (file.size > maxSize) {
-      alert("❌ Ukuran gambar tanda tangan maksimal 1MB");
+      alert(`❌ File ${errorLabel} harus berupa gambar (jpg, png, dsb.)`);
       return;
     }
 
-    setTtdFile(file);
+    const maxSize = maxSizeMb * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert(`❌ Ukuran gambar ${errorLabel} maksimal ${maxSizeMb}MB`);
+      return;
+    }
+
+    setFile(file);
 
     const url = URL.createObjectURL(file);
-    setLocalTTDPreview((prev) => {
+    setPreviewUrl((prev) => {
       if (prev && prev.startsWith("blob:")) {
         URL.revokeObjectURL(prev);
       }
@@ -150,38 +164,56 @@ export default function BioSekolahPage() {
     });
   };
 
-  // pilih file kop rapor (header rapor)
-  const onKopRaporChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      setKopRaporFile(null);
-      setLocalKopRaporPreview("");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      alert("❌ File Kop Rapor harus berupa gambar (jpg, png, dsb.)");
-      return;
-    }
-    const maxSize = 2 * 1024 * 1024; // 2MB
-    if (file.size > maxSize) {
-      alert("❌ Ukuran gambar Kop Rapor maksimal 2MB");
-      return;
-    }
-
-    setKopRaporFile(file);
-
-    const url = URL.createObjectURL(file);
-    setLocalKopRaporPreview((prev) => {
-      if (prev && prev.startsWith("blob:")) {
-        URL.revokeObjectURL(prev);
-      }
-      return url;
+  const onTtdChange = (e) => {
+    handleImageSelect({
+      event: e,
+      setFile: setTtdFile,
+      setPreviewUrl: setLocalTTDPreview,
+      maxSizeMb: 1,
+      errorLabel: "tanda tangan",
     });
+  };
+
+  const onKopRaporChange = (e) => {
+    handleImageSelect({
+      event: e,
+      setFile: setKopRaporFile,
+      setPreviewUrl: setLocalKopRaporPreview,
+      maxSizeMb: 2,
+      errorLabel: "Kop Rapor",
+    });
+  };
+
+  const onKopKelulusanChange = (e) => {
+    handleImageSelect({
+      event: e,
+      setFile: setKopKelulusanFile,
+      setPreviewUrl: setLocalKopKelulusanPreview,
+      maxSizeMb: 2,
+      errorLabel: "Kop Kelulusan",
+    });
+  };
+
+  const onTtdKelulusanChange = (e) => {
+    handleImageSelect({
+      event: e,
+      setFile: setTtdKelulusanFile,
+      setPreviewUrl: setLocalTTDKelulusanPreview,
+      maxSizeMb: 1,
+      errorLabel: "Tanda Tangan Kelulusan",
+    });
+  };
+
+  const clearBlobPreview = (url, setter) => {
+    if (url && url.startsWith("blob:")) {
+      URL.revokeObjectURL(url);
+    }
+    setter("");
   };
 
   const onSave = async (e) => {
     e.preventDefault();
+
     if (!form.nama_sekolah?.trim() || !form.alamat?.trim()) {
       alert("❌ Nama sekolah & Alamat wajib diisi");
       return;
@@ -190,30 +222,37 @@ export default function BioSekolahPage() {
     try {
       setSaving(true);
 
-      // siapkan URL tanda tangan (pakai yang lama, kecuali user upload baru)
       let ttdUrl = preview.kepala_sekolah_ttd || "";
-      // siapkan URL kop rapor (pakai yang lama, kecuali user upload baru)
       let kopRaporUrl = preview.kopRaporUrl || "";
+      let kopKelulusanUrl = preview.kopKelulusanUrl || "";
+      let ttdKelulusanUrl = preview.ttdKelulusanUrl || "";
 
-      // kalau ada file baru, upload ke Storage
       if (ttdFile) {
         const ext = ttdFile.name.split(".").pop()?.toLowerCase() || "png";
-        const storageRef = ref(
-          storage,
-          `bio_sekolah/ttd_kepala_sekolah.${ext}`
-        );
+        const storageRef = ref(storage, `bio_sekolah/ttd_kepala_sekolah.${ext}`);
         await uploadBytes(storageRef, ttdFile);
         ttdUrl = await getDownloadURL(storageRef);
       }
 
       if (kopRaporFile) {
         const ext = kopRaporFile.name.split(".").pop()?.toLowerCase() || "png";
-        const storageRef = ref(
-          storage,
-          `bio_sekolah/kop_rapor.${ext}`
-        );
+        const storageRef = ref(storage, `bio_sekolah/kop_rapor.${ext}`);
         await uploadBytes(storageRef, kopRaporFile);
         kopRaporUrl = await getDownloadURL(storageRef);
+      }
+
+      if (kopKelulusanFile) {
+        const ext = kopKelulusanFile.name.split(".").pop()?.toLowerCase() || "png";
+        const storageRef = ref(storage, `bio_sekolah/kop_kelulusan.${ext}`);
+        await uploadBytes(storageRef, kopKelulusanFile);
+        kopKelulusanUrl = await getDownloadURL(storageRef);
+      }
+
+      if (ttdKelulusanFile) {
+        const ext = ttdKelulusanFile.name.split(".").pop()?.toLowerCase() || "png";
+        const storageRef = ref(storage, `bio_sekolah/ttd_kelulusan.${ext}`);
+        await uploadBytes(storageRef, ttdKelulusanFile);
+        ttdKelulusanUrl = await getDownloadURL(storageRef);
       }
 
       const payload = {
@@ -229,14 +268,11 @@ export default function BioSekolahPage() {
         updatedAt: serverTimestamp(),
       };
 
-      if (ttdUrl) {
-        payload.kepala_sekolah_ttd = ttdUrl;
-      }
-      if (kopRaporUrl) {
-        payload.kopRaporUrl = kopRaporUrl;
-      }
+      if (ttdUrl) payload.kepala_sekolah_ttd = ttdUrl;
+      if (kopRaporUrl) payload.kopRaporUrl = kopRaporUrl;
+      if (kopKelulusanUrl) payload.kopKelulusanUrl = kopKelulusanUrl;
+      if (ttdKelulusanUrl) payload.ttdKelulusanUrl = ttdKelulusanUrl;
 
-      // buat createdAt saat pertama kali
       const firstLoad =
         !preview.nama_sekolah &&
         !preview.alamat &&
@@ -244,13 +280,14 @@ export default function BioSekolahPage() {
         !preview.tahunPelajaranUmum &&
         !preview.fase &&
         !preview.kepala_sekolah &&
-        !preview.kepala_sekolah_ttd;
+        !preview.kepala_sekolah_ttd &&
+        !preview.kopRaporUrl &&
+        !preview.kopKelulusanUrl &&
+        !preview.ttdKelulusanUrl;
 
       await setDoc(
         refBio,
-        firstLoad
-          ? { ...payload, createdAt: serverTimestamp() }
-          : payload,
+        firstLoad ? { ...payload, createdAt: serverTimestamp() } : payload,
         { merge: true }
       );
 
@@ -267,26 +304,29 @@ export default function BioSekolahPage() {
         waktuPembagianRaport: payload.waktuPembagianRaport,
         kepala_sekolah_ttd: ttdUrl || p.kepala_sekolah_ttd || "",
         kopRaporUrl: kopRaporUrl || p.kopRaporUrl || "",
+        kopKelulusanUrl: kopKelulusanUrl || p.kopKelulusanUrl || "",
+        ttdKelulusanUrl: ttdKelulusanUrl || p.ttdKelulusanUrl || "",
       }));
 
       setForm((p) => ({
         ...p,
         kepala_sekolah_ttd: ttdUrl || p.kepala_sekolah_ttd || "",
         kopRaporUrl: kopRaporUrl || p.kopRaporUrl || "",
+        kopKelulusanUrl: kopKelulusanUrl || p.kopKelulusanUrl || "",
+        ttdKelulusanUrl: ttdKelulusanUrl || p.ttdKelulusanUrl || "",
       }));
 
-      // setelah sukses, reset file lokal
       setTtdFile(null);
-      if (localTTDPreview && localTTDPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(localTTDPreview);
-      }
-      setLocalTTDPreview("");
+      clearBlobPreview(localTTDPreview, setLocalTTDPreview);
 
       setKopRaporFile(null);
-      if (localKopRaporPreview && localKopRaporPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(localKopRaporPreview);
-      }
-      setLocalKopRaporPreview("");
+      clearBlobPreview(localKopRaporPreview, setLocalKopRaporPreview);
+
+      setKopKelulusanFile(null);
+      clearBlobPreview(localKopKelulusanPreview, setLocalKopKelulusanPreview);
+
+      setTtdKelulusanFile(null);
+      clearBlobPreview(localTTDKelulusanPreview, setLocalTTDKelulusanPreview);
 
       alert("✅ Bio sekolah disimpan");
     } catch (e) {
@@ -297,13 +337,8 @@ export default function BioSekolahPage() {
     }
   };
 
-  // handler untuk menghapus tanda tangan (clear field & state)
   const onDeleteTTD = async () => {
-    if (
-      !preview.kepala_sekolah_ttd &&
-      !form.kepala_sekolah_ttd &&
-      !localTTDPreview
-    ) {
+    if (!preview.kepala_sekolah_ttd && !form.kepala_sekolah_ttd && !localTTDPreview) {
       return;
     }
 
@@ -324,11 +359,7 @@ export default function BioSekolahPage() {
 
       setPreview((p) => ({ ...p, kepala_sekolah_ttd: "" }));
       setForm((p) => ({ ...p, kepala_sekolah_ttd: "" }));
-
-      if (localTTDPreview && localTTDPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(localTTDPreview);
-      }
-      setLocalTTDPreview("");
+      clearBlobPreview(localTTDPreview, setLocalTTDPreview);
       setTtdFile(null);
 
       alert("✅ Tanda tangan dihapus");
@@ -340,13 +371,8 @@ export default function BioSekolahPage() {
     }
   };
 
-  // handler untuk menghapus kop rapor (clear field & state)
   const onDeleteKopRapor = async () => {
-    if (
-      !preview.kopRaporUrl &&
-      !form.kopRaporUrl &&
-      !localKopRaporPreview
-    ) {
+    if (!preview.kopRaporUrl && !form.kopRaporUrl && !localKopRaporPreview) {
       return;
     }
 
@@ -367,11 +393,7 @@ export default function BioSekolahPage() {
 
       setPreview((p) => ({ ...p, kopRaporUrl: "" }));
       setForm((p) => ({ ...p, kopRaporUrl: "" }));
-
-      if (localKopRaporPreview && localKopRaporPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(localKopRaporPreview);
-      }
-      setLocalKopRaporPreview("");
+      clearBlobPreview(localKopRaporPreview, setLocalKopRaporPreview);
       setKopRaporFile(null);
 
       alert("✅ Kop Rapor dihapus");
@@ -383,10 +405,81 @@ export default function BioSekolahPage() {
     }
   };
 
+  const onDeleteKopKelulusan = async () => {
+    if (!preview.kopKelulusanUrl && !form.kopKelulusanUrl && !localKopKelulusanPreview) {
+      return;
+    }
+
+    const ok = confirm("Hapus gambar Kop Kelulusan?");
+    if (!ok) return;
+
+    try {
+      setSaving(true);
+
+      await setDoc(
+        refBio,
+        {
+          kopKelulusanUrl: "",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      setPreview((p) => ({ ...p, kopKelulusanUrl: "" }));
+      setForm((p) => ({ ...p, kopKelulusanUrl: "" }));
+      clearBlobPreview(localKopKelulusanPreview, setLocalKopKelulusanPreview);
+      setKopKelulusanFile(null);
+
+      alert("✅ Kop Kelulusan dihapus");
+    } catch (e) {
+      console.error(e);
+      alert("⚠️ Gagal menghapus Kop Kelulusan");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onDeleteTTDKelulusan = async () => {
+    if (!preview.ttdKelulusanUrl && !form.ttdKelulusanUrl && !localTTDKelulusanPreview) {
+      return;
+    }
+
+    const ok = confirm("Hapus Tanda Tangan Kelulusan?");
+    if (!ok) return;
+
+    try {
+      setSaving(true);
+
+      await setDoc(
+        refBio,
+        {
+          ttdKelulusanUrl: "",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      setPreview((p) => ({ ...p, ttdKelulusanUrl: "" }));
+      setForm((p) => ({ ...p, ttdKelulusanUrl: "" }));
+      clearBlobPreview(localTTDKelulusanPreview, setLocalTTDKelulusanPreview);
+      setTtdKelulusanFile(null);
+
+      alert("✅ Tanda Tangan Kelulusan dihapus");
+    } catch (e) {
+      console.error(e);
+      alert("⚠️ Gagal menghapus Tanda Tangan Kelulusan");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const ttdPreviewUrl = localTTDPreview || preview.kepala_sekolah_ttd || "";
   const kopRaporPreviewUrl = localKopRaporPreview || preview.kopRaporUrl || "";
+  const kopKelulusanPreviewUrl =
+    localKopKelulusanPreview || preview.kopKelulusanUrl || "";
+  const ttdKelulusanPreviewUrl =
+    localTTDKelulusanPreview || preview.ttdKelulusanUrl || "";
 
-  // helper gabung Umum / Arab
   const joinUmumArab = (umum, arab) => {
     if (!umum && !arab) return "—";
     if (umum && arab) return `${umum} / ${arab}`;
@@ -394,19 +487,15 @@ export default function BioSekolahPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 py-10 px-6 text-black">
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* ======= FORM ======= */}
+    <div className="min-h-screen bg-slate-100 px-6 py-10 text-black">
+      <div className="mx-auto max-w-5xl space-y-8">
         <SectionCard title="🏫 Bio Sekolah">
           {loading ? (
             <p className="text-center text-slate-600">⏳ Memuat...</p>
           ) : (
-            <form
-              onSubmit={onSave}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
+            <form onSubmit={onSave} className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700 mb-1">
+                <label className="mb-1 block text-sm text-slate-700">
                   Nama Sekolah
                 </label>
                 <input
@@ -414,13 +503,13 @@ export default function BioSekolahPage() {
                   name="nama_sekolah"
                   value={form.nama_sekolah}
                   onChange={onChange}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
                   placeholder="SMAS ISLAM ASSUNNAH BAGEK NYAKA"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700 mb-1">
+                <label className="mb-1 block text-sm text-slate-700">
                   Alamat
                 </label>
                 <textarea
@@ -428,14 +517,13 @@ export default function BioSekolahPage() {
                   rows={3}
                   value={form.alamat}
                   onChange={onChange}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300 resize-y"
+                  className="w-full resize-y rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
                   placeholder="Jln. Raya Lab. Lombok Km.55 ..."
                 />
               </div>
 
-              {/* Semester & Tahun Pelajaran (Umum) */}
               <div>
-                <label className="block text-sm text-slate-700 mb-1">
+                <label className="mb-1 block text-sm text-slate-700">
                   Semester (Umum)
                 </label>
                 <input
@@ -443,11 +531,12 @@ export default function BioSekolahPage() {
                   name="semesterUmum"
                   value={form.semesterUmum}
                   onChange={onChange}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
               </div>
+
               <div>
-                <label className="block text-sm text-slate-700 mb-1">
+                <label className="mb-1 block text-sm text-slate-700">
                   Tahun Pelajaran (Umum)
                 </label>
                 <input
@@ -455,13 +544,12 @@ export default function BioSekolahPage() {
                   name="tahunPelajaranUmum"
                   value={form.tahunPelajaranUmum}
                   onChange={onChange}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
               </div>
 
-              {/* Semester & Tahun Pelajaran (Arab) */}
               <div>
-                <label className="block text-sm text-slate-700 mb-1">
+                <label className="mb-1 block text-sm text-slate-700">
                   Semester (Arab)
                 </label>
                 <input
@@ -470,12 +558,13 @@ export default function BioSekolahPage() {
                   value={form.semesterArab}
                   onChange={onChange}
                   dir="rtl"
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
                   placeholder="اكتب هنا الفصل بالعربية"
                 />
               </div>
+
               <div>
-                <label className="block text-sm text-slate-700 mb-1">
+                <label className="mb-1 block text-sm text-slate-700">
                   Tahun Pelajaran (Arab)
                 </label>
                 <input
@@ -484,28 +573,25 @@ export default function BioSekolahPage() {
                   value={form.tahunPelajaranArab}
                   onChange={onChange}
                   dir="rtl"
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
                   placeholder="اكتب هنا السنة الدراسية"
                 />
               </div>
 
-              {/* Fase & Kepala Sekolah */}
               <div>
-                <label className="block text-sm text-slate-700 mb-1">
-                  Fase
-                </label>
+                <label className="mb-1 block text-sm text-slate-700">Fase</label>
                 <input
                   type="text"
                   name="fase"
                   value={form.fase}
                   onChange={onChange}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
                   placeholder="Contoh: Fase F (SMA)"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700 mb-1">
+                <label className="mb-1 block text-sm text-slate-700">
                   Nama Kepala Sekolah
                 </label>
                 <input
@@ -513,14 +599,13 @@ export default function BioSekolahPage() {
                   name="kepala_sekolah"
                   value={form.kepala_sekolah}
                   onChange={onChange}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
                   placeholder="Nama Kepala Sekolah"
                 />
               </div>
 
-              {/* Waktu Pembagian Raport */}
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700 mb-1">
+                <label className="mb-1 block text-sm text-slate-700">
                   Waktu Pembagian Raport
                 </label>
                 <input
@@ -528,105 +613,197 @@ export default function BioSekolahPage() {
                   name="waktuPembagianRaport"
                   value={form.waktuPembagianRaport}
                   onChange={onChange}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                  placeholder='Contoh: Bagek Nyaka, 1 Oktober 2025'
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  placeholder="Contoh: Bagek Nyaka, 1 Oktober 2025"
                 />
                 <p className="mt-1 text-xs text-slate-500">
                   Teks ini nanti akan dipanggil di bagian bawah kop saat cetak rapor.
                 </p>
               </div>
 
-              {/* Upload Kop Rapor */}
-              <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700 mb-1">
-                  Kop Rapor (Gambar)
-                </label>
-                <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={onKopRaporChange}
-                    className="text-sm"
-                  />
-                  {kopRaporPreviewUrl && (
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={kopRaporPreviewUrl}
-                        alt="Kop Rapor"
-                        className="h-20 w-40 object-contain rounded-md border border-slate-300 bg-white"
-                      />
-                      <span className="text-xs text-slate-500">
-                        Pratinjau Kop Rapor
-                      </span>
+              <div className="md:col-span-2 grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="mb-3 text-sm font-bold text-slate-800">Aset Rapor</p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-1 block text-sm text-slate-700">
+                        Kop Rapor (Gambar)
+                      </label>
+                      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onKopRaporChange}
+                          className="text-sm"
+                        />
+                        {kopRaporPreviewUrl && (
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={kopRaporPreviewUrl}
+                              alt="Kop Rapor"
+                              className="h-20 w-40 rounded-md border border-slate-300 bg-white object-contain"
+                            />
+                            <span className="text-xs text-slate-500">
+                              Pratinjau Kop Rapor
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={onDeleteKopRapor}
+                          disabled={
+                            saving ||
+                            (!preview.kopRaporUrl &&
+                              !form.kopRaporUrl &&
+                              !localKopRaporPreview)
+                          }
+                          className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 md:text-sm"
+                        >
+                          Hapus Kop Rapor
+                        </button>
+                      </div>
                     </div>
-                  )}
+
+                    <div>
+                      <label className="mb-1 block text-sm text-slate-700">
+                        Tanda Tangan Kepala Sekolah
+                      </label>
+                      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onTtdChange}
+                          className="text-sm"
+                        />
+                        {ttdPreviewUrl && (
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={ttdPreviewUrl}
+                              alt="Tanda tangan Kepala Sekolah"
+                              className="h-20 w-32 rounded-md border border-slate-300 bg-white object-contain"
+                            />
+                            <span className="text-xs text-slate-500">
+                              Pratinjau tanda tangan
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={onDeleteTTD}
+                          disabled={
+                            saving ||
+                            (!preview.kepala_sekolah_ttd &&
+                              !form.kepala_sekolah_ttd &&
+                              !localTTDPreview)
+                          }
+                          className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 md:text-sm"
+                        >
+                          Hapus Tanda Tangan
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-2 flex justify-between items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onDeleteKopRapor}
-                    disabled={
-                      saving ||
-                      (!preview.kopRaporUrl &&
-                        !form.kopRaporUrl &&
-                        !localKopRaporPreview)
-                    }
-                    className="rounded-md px-3 py-1.5 text-xs md:text-sm border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    Hapus Kop Rapor
-                  </button>
-                  <span className="text-[11px] text-slate-500">
-                    Gunakan gambar header rapor siap-cetak (format JPG/PNG).
-                  </span>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="mb-3 text-sm font-bold text-slate-800">Aset Kelulusan</p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-1 block text-sm text-slate-700">
+                        Kop Kelulusan (Gambar)
+                      </label>
+                      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onKopKelulusanChange}
+                          className="text-sm"
+                        />
+                        {kopKelulusanPreviewUrl && (
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={kopKelulusanPreviewUrl}
+                              alt="Kop Kelulusan"
+                              className="h-20 w-40 rounded-md border border-slate-300 bg-white object-contain"
+                            />
+                            <span className="text-xs text-slate-500">
+                              Pratinjau Kop Kelulusan
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={onDeleteKopKelulusan}
+                          disabled={
+                            saving ||
+                            (!preview.kopKelulusanUrl &&
+                              !form.kopKelulusanUrl &&
+                              !localKopKelulusanPreview)
+                          }
+                          className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 md:text-sm"
+                        >
+                          Hapus Kop Kelulusan
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm text-slate-700">
+                        Tanda Tangan Kelulusan
+                      </label>
+                      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onTtdKelulusanChange}
+                          className="text-sm"
+                        />
+                        {ttdKelulusanPreviewUrl && (
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={ttdKelulusanPreviewUrl}
+                              alt="Tanda Tangan Kelulusan"
+                              className="h-20 w-32 rounded-md border border-slate-300 bg-white object-contain"
+                            />
+                            <span className="text-xs text-slate-500">
+                              Pratinjau tanda tangan kelulusan
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={onDeleteTTDKelulusan}
+                          disabled={
+                            saving ||
+                            (!preview.ttdKelulusanUrl &&
+                              !form.ttdKelulusanUrl &&
+                              !localTTDKelulusanPreview)
+                          }
+                          className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 md:text-sm"
+                        >
+                          Hapus TTD Kelulusan
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Upload tanda tangan kepala sekolah */}
-              <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700 mb-1">
-                  Tanda Tangan Kepala Sekolah
-                </label>
-                <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={onTtdChange}
-                    className="text-sm"
-                  />
-                  {ttdPreviewUrl && (
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={ttdPreviewUrl}
-                        alt="Tanda tangan Kepala Sekolah"
-                        className="h-20 w-32 object-contain rounded-md border border-slate-300 bg-white"
-                      />
-                      <span className="text-xs text-slate-500">
-                        Pratinjau tanda tangan
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="md:col-span-2 flex items-center justify-between gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={onDeleteTTD}
-                  disabled={
-                    saving ||
-                    (!preview.kepala_sekolah_ttd &&
-                      !form.kepala_sekolah_ttd &&
-                      !localTTDPreview)
-                  }
-                  className="rounded-md px-4 py-2 text-xs md:text-sm border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                >
-                  Hapus Tanda Tangan
-                </button>
-
+              <div className="mt-2 flex items-center justify-end gap-2 md:col-span-2">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-md px-5 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                  className="rounded-md bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                 >
                   {saving ? "Menyimpan..." : "Simpan"}
                 </button>
@@ -635,124 +812,169 @@ export default function BioSekolahPage() {
           )}
         </SectionCard>
 
-        {/* ======= PRATINJAU ======= */}
         <SectionCard title="🧾 Pratinjau">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Tabel info */}
-            <div className="flex-1">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
-                <table className="w-full border-collapse text-sm">
-                  <tbody className="text-slate-800">
-                    <tr className="bg-slate-50">
-                      <td className="px-4 py-2 border border-slate-200 w-48">
-                        Nama Sekolah
-                      </td>
-                      <td className="px-4 py-2 border border-slate-200">
-                        {preview.nama_sekolah || "—"}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-2 border border-slate-200">
-                        Alamat
-                      </td>
-                      <td className="px-4 py-2 border border-slate-200 whitespace-pre-wrap break-words">
-                        {preview.alamat || "—"}
-                      </td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td className="px-4 py-2 border border-slate-200">
-                        Semester
-                      </td>
-                      <td className="px-4 py-2 border border-slate-200">
-                        {joinUmumArab(
-                          preview.semesterUmum,
-                          preview.semesterArab
-                        )}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-2 border border-slate-200">
-                        Tahun Pelajaran
-                      </td>
-                      <td className="px-4 py-2 border border-slate-200">
-                        {joinUmumArab(
-                          preview.tahunPelajaranUmum,
-                          preview.tahunPelajaranArab
-                        )}
-                      </td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td className="px-4 py-2 border border-slate-200">
-                        Fase
-                      </td>
-                      <td className="px-4 py-2 border border-slate-200">
-                        {preview.fase || "—"}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-2 border border-slate-200">
-                        Kepala Sekolah
-                      </td>
-                      <td className="px-4 py-2 border border-slate-200">
-                        {preview.kepala_sekolah || "—"}
-                      </td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td className="px-4 py-2 border border-slate-200">
-                        Waktu Pembagian Raport
-                      </td>
-                      <td className="px-4 py-2 border border-slate-200">
-                        {preview.waktuPembagianRaport || "—"}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 md:flex-row">
+              <div className="flex-1">
+                <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+                  <table className="w-full border-collapse text-sm">
+                    <tbody className="text-slate-800">
+                      <tr className="bg-slate-50">
+                        <td className="w-48 border border-slate-200 px-4 py-2">
+                          Nama Sekolah
+                        </td>
+                        <td className="border border-slate-200 px-4 py-2">
+                          {preview.nama_sekolah || "—"}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="border border-slate-200 px-4 py-2">
+                          Alamat
+                        </td>
+                        <td className="whitespace-pre-wrap break-words border border-slate-200 px-4 py-2">
+                          {preview.alamat || "—"}
+                        </td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="border border-slate-200 px-4 py-2">
+                          Semester
+                        </td>
+                        <td className="border border-slate-200 px-4 py-2">
+                          {joinUmumArab(preview.semesterUmum, preview.semesterArab)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="border border-slate-200 px-4 py-2">
+                          Tahun Pelajaran
+                        </td>
+                        <td className="border border-slate-200 px-4 py-2">
+                          {joinUmumArab(
+                            preview.tahunPelajaranUmum,
+                            preview.tahunPelajaranArab
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="border border-slate-200 px-4 py-2">
+                          Fase
+                        </td>
+                        <td className="border border-slate-200 px-4 py-2">
+                          {preview.fase || "—"}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="border border-slate-200 px-4 py-2">
+                          Kepala Sekolah
+                        </td>
+                        <td className="border border-slate-200 px-4 py-2">
+                          {preview.kepala_sekolah || "—"}
+                        </td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="border border-slate-200 px-4 py-2">
+                          Waktu Pembagian Raport
+                        </td>
+                        <td className="border border-slate-200 px-4 py-2">
+                          {preview.waktuPembagianRaport || "—"}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {preview.updatedAt && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    Terakhir diperbarui.
+                  </p>
+                )}
               </div>
-              {preview.updatedAt && (
-                <p className="mt-3 text-xs text-slate-500">
-                  Terakhir diperbarui.
-                </p>
-              )}
             </div>
 
-            {/* Preview tanda tangan & kop rapor di panel kanan */}
-            <div className="w-full md:w-56 flex flex-col items-center gap-4">
-              <div className="w-full flex flex-col items-center gap-2">
-                <div className="h-28 w-full border border-slate-300 rounded-md overflow-hidden bg-white flex items-center justify-center">
-                  {preview.kepala_sekolah_ttd ? (
-                    <img
-                      src={preview.kepala_sekolah_ttd}
-                      alt="Tanda tangan Kepala Sekolah"
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-[11px] text-slate-400 text-center px-2">
-                      Belum ada tanda tangan kepala sekolah
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="mb-4 text-sm font-bold text-slate-800">Pratinjau Aset Rapor</p>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-white">
+                      {preview.kopRaporUrl ? (
+                        <img
+                          src={preview.kopRaporUrl}
+                          alt="Kop Rapor"
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <span className="px-2 text-center text-[11px] text-slate-400">
+                          Belum ada gambar Kop Rapor
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-500">
+                      Kop Rapor
                     </span>
-                  )}
+                  </div>
+
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-white">
+                      {preview.kepala_sekolah_ttd ? (
+                        <img
+                          src={preview.kepala_sekolah_ttd}
+                          alt="Tanda tangan Kepala Sekolah"
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <span className="px-2 text-center text-[11px] text-slate-400">
+                          Belum ada tanda tangan kepala sekolah
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-500">
+                      Tanda Tangan Kepala Sekolah
+                    </span>
+                  </div>
                 </div>
-                <span className="text-[11px] text-slate-500">
-                  Tanda tangan resmi Kepala Sekolah
-                </span>
               </div>
 
-              <div className="w-full flex flex-col items-center gap-2">
-                <div className="h-24 w-full border border-slate-300 rounded-md overflow-hidden bg-white flex items-center justify-center">
-                  {preview.kopRaporUrl ? (
-                    <img
-                      src={preview.kopRaporUrl}
-                      alt="Kop Rapor"
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-[11px] text-slate-400 text-center px-2">
-                      Belum ada gambar Kop Rapor
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="mb-4 text-sm font-bold text-slate-800">Pratinjau Aset Kelulusan</p>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-white">
+                      {preview.kopKelulusanUrl ? (
+                        <img
+                          src={preview.kopKelulusanUrl}
+                          alt="Kop Kelulusan"
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <span className="px-2 text-center text-[11px] text-slate-400">
+                          Belum ada gambar Kop Kelulusan
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-500">
+                      Kop Kelulusan
                     </span>
-                  )}
+                  </div>
+
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-white">
+                      {preview.ttdKelulusanUrl ? (
+                        <img
+                          src={preview.ttdKelulusanUrl}
+                          alt="Tanda Tangan Kelulusan"
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <span className="px-2 text-center text-[11px] text-slate-400">
+                          Belum ada tanda tangan kelulusan
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-500">
+                      Tanda Tangan Kelulusan
+                    </span>
+                  </div>
                 </div>
-                <span className="text-[11px] text-slate-500">
-                  Pratinjau Kop Rapor (header cetak)
-                </span>
               </div>
             </div>
           </div>

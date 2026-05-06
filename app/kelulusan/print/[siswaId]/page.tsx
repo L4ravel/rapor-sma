@@ -28,6 +28,7 @@ type SiswaKelulusan = {
   nama?: string;
   ttl?: string;
   orangTua?: string;
+  nisn?: string;
   npsn?: string;
   programJurusanId?: string;
   programJurusanNama?: string;
@@ -40,6 +41,7 @@ type InformasiKelulusan = {
   nama?: string;
   ttl?: string;
   orangTua?: string;
+  nisn?: string;
   npsn?: string;
   jurusan?: string;
   nomorSurat?: string;
@@ -123,6 +125,7 @@ export default function PrintKelulusanPage() {
           id: siswaSnap.id,
           ...(siswaSnap.data() as Omit<SiswaKelulusan, "id">),
         };
+
         setSiswa(siswaData);
         setBioSekolah(bioSnap.exists() ? (bioSnap.data() as BioSekolah) : null);
 
@@ -162,30 +165,30 @@ export default function PrintKelulusanPage() {
   }, [siswaId]);
 
   const rows = useMemo<NilaiRow[]>(() => {
-  if (!siswa) return [];
+    if (!siswa) return [];
 
-  const snapshot = Array.isArray(siswa.mapelSnapshot) ? siswa.mapelSnapshot : [];
-  const nilaiByMapelId = siswa.nilaiByMapelId || {};
+    const snapshot = Array.isArray(siswa.mapelSnapshot) ? siswa.mapelSnapshot : [];
+    const nilaiByMapelId = siswa.nilaiByMapelId || {};
 
-  const kelompokA = snapshot.filter(
-    (mapel) => normalizeKelompok(mapel.kelompok) === "A"
-  );
+    const kelompokA = snapshot.filter(
+      (mapel) => normalizeKelompok(mapel.kelompok) === "A"
+    );
 
-  const kelompokB = snapshot.filter(
-    (mapel) => normalizeKelompok(mapel.kelompok) === "B"
-  );
+    const kelompokB = snapshot.filter(
+      (mapel) => normalizeKelompok(mapel.kelompok) === "B"
+    );
 
-  const kelompokC = snapshot.filter(
-    (mapel) => normalizeKelompok(mapel.kelompok) === "C"
-  );
+    const kelompokC = snapshot.filter(
+      (mapel) => normalizeKelompok(mapel.kelompok) === "C"
+    );
 
-  return [...kelompokA, ...kelompokB, ...kelompokC].map((mapel, index) => ({
-    no: index + 1,
-    nama: mapel.nama || "-",
-    nilai: String(nilaiByMapelId[mapel.mapelId] || ""),
-    kelompok: normalizeKelompok(mapel.kelompok),
-  }));
-}, [siswa]);
+    return [...kelompokA, ...kelompokB, ...kelompokC].map((mapel, index) => ({
+      no: index + 1,
+      nama: mapel.nama || "-",
+      nilai: String(nilaiByMapelId[mapel.mapelId] || ""),
+      kelompok: normalizeKelompok(mapel.kelompok),
+    }));
+  }, [siswa]);
 
   const groupedRows = useMemo(() => {
     return {
@@ -208,7 +211,7 @@ export default function PrintKelulusanPage() {
   const nama = info?.nama || siswa?.nama || "-";
   const ttl = info?.ttl || siswa?.ttl || "-";
   const orangTua = info?.orangTua || siswa?.orangTua || "-";
-  const npsn = info?.npsn || siswa?.npsn || "-";
+  const nisn = info?.nisn || siswa?.nisn || "-";
   const jurusan = info?.jurusan || siswa?.programJurusanNama || "-";
 
   const nomorSurat = info?.nomorSurat || "421.3/063/SMA-IA/E/V/2026";
@@ -254,7 +257,9 @@ export default function PrintKelulusanPage() {
       <div className="print:hidden sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div>
-            <p className="text-sm font-bold text-slate-900">Preview Surat Kelulusan</p>
+            <p className="text-sm font-bold text-slate-900">
+              Preview Surat Kelulusan
+            </p>
             <p className="text-xs text-slate-500">{nama}</p>
           </div>
 
@@ -307,12 +312,18 @@ export default function PrintKelulusanPage() {
                 <tr>
                   <td className="w-[40%] px-0 py-[2px] align-top">Nama</td>
                   <td className="w-[3%] px-0 py-[2px] align-top">:</td>
-                  <td className="px-0 py-[2px] align-top font-bold uppercase">{nama}</td>
+                  <td className="px-0 py-[2px] align-top font-bold uppercase">
+                    {nama}
+                  </td>
                 </tr>
                 <tr>
-                  <td className="px-0 py-[2px] align-top">Tempat dan Tanggal Lahir</td>
+                  <td className="px-0 py-[2px] align-top">
+                    Tempat dan Tanggal Lahir
+                  </td>
                   <td className="px-0 py-[2px] align-top">:</td>
-                  <td className="px-0 py-[2px] align-top font-bold uppercase">{ttl}</td>
+                  <td className="px-0 py-[2px] align-top font-bold uppercase">
+                    {ttl}
+                  </td>
                 </tr>
                 <tr>
                   <td className="px-0 py-[2px] align-top">Nama Orang Tua/Wali</td>
@@ -320,27 +331,31 @@ export default function PrintKelulusanPage() {
                   <td className="px-0 py-[2px] align-top font-bold">{orangTua}</td>
                 </tr>
                 <tr>
-                  <td className="px-0 py-[2px] align-top">Nomor Induk Siswa Nasional</td>
+                  <td className="px-0 py-[2px] align-top">
+                    Nomor Induk Siswa Nasional
+                  </td>
                   <td className="px-0 py-[2px] align-top">:</td>
-                  <td className="px-0 py-[2px] align-top font-bold">{npsn}</td>
+                  <td className="px-0 py-[2px] align-top font-bold">{nisn}</td>
                 </tr>
                 <tr>
                   <td className="px-0 py-[2px] align-top">Program Jurusan</td>
                   <td className="px-0 py-[2px] align-top">:</td>
-                  <td className="px-0 py-[2px] align-top font-bold uppercase">{jurusan}</td>
+                  <td className="px-0 py-[2px] align-top font-bold uppercase">
+                    {jurusan}
+                  </td>
                 </tr>
               </tbody>
             </table>
 
             <p className="mt-5 text-justify">
-              Berdasarkan kriteria kelulusan peserta didik yang sudah ditetapkan, maka yang
-              bersangkutan dinyatakan :
+              Berdasarkan kriteria kelulusan peserta didik yang sudah ditetapkan,
+              maka yang bersangkutan dinyatakan :
             </p>
 
             <div className="my-3 text-center">
               <span className="text-[18pt] font-bold tracking-[0.08em]">
-  {statusLulusText.toUpperCase()}
-</span>
+                {statusLulusText.toUpperCase()}
+              </span>
             </div>
 
             <p className="text-justify">Dengan hasil sebagai berikut :</p>
@@ -372,7 +387,10 @@ export default function PrintKelulusanPage() {
                 ) : (
                   <>
                     <tr>
-                      <td colSpan={3} className="border border-[#999] px-[9px] py-[1px]">
+                      <td
+                        colSpan={3}
+                        className="border border-[#999] px-[9px] py-[1px]"
+                      >
                         Kelompok A
                       </td>
                     </tr>
@@ -391,7 +409,10 @@ export default function PrintKelulusanPage() {
                     ))}
 
                     <tr>
-                      <td colSpan={3} className="border border-[#999] px-[9px] py-[1px]">
+                      <td
+                        colSpan={3}
+                        className="border border-[#999] px-[9px] py-[1px]"
+                      >
                         Kelompok B
                       </td>
                     </tr>
@@ -410,7 +431,10 @@ export default function PrintKelulusanPage() {
                     ))}
 
                     <tr>
-                      <td colSpan={3} className="border border-[#999] px-[9px] py-[1px]">
+                      <td
+                        colSpan={3}
+                        className="border border-[#999] px-[9px] py-[1px]"
+                      >
                         Kelompok C
                       </td>
                     </tr>
@@ -463,8 +487,8 @@ export default function PrintKelulusanPage() {
                         <div className="mt-10">
                           <u>
                             <br />
-                            <br />   
-                                 <br />                                             
+                            <br />
+                            <br />
                             <b>{kepalaSekolah}</b>
                           </u>
                           <br />

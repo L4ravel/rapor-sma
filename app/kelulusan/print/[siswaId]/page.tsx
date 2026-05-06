@@ -211,6 +211,7 @@ export default function PrintKelulusanPage() {
   const nama = info?.nama || siswa?.nama || "-";
   const ttl = info?.ttl || siswa?.ttl || "-";
   const orangTua = info?.orangTua || siswa?.orangTua || "-";
+  const npsn = info?.npsn || siswa?.npsn || "-";
   const nisn = info?.nisn || siswa?.nisn || "-";
   const jurusan = info?.jurusan || siswa?.programJurusanNama || "-";
 
@@ -337,6 +338,12 @@ export default function PrintKelulusanPage() {
                   <td className="px-0 py-[2px] align-top">:</td>
                   <td className="px-0 py-[2px] align-top font-bold">{nisn}</td>
                 </tr>
+                <tr>
+                  <td className="px-0 py-[2px] align-top">Nomor Pokok Sekolah Nasional</td>
+                  <td className="px-0 py-[2px] align-top">:</td>
+                  <td className="px-0 py-[2px] align-top font-bold">{npsn}</td>
+                </tr>
+                
                 <tr>
                   <td className="px-0 py-[2px] align-top">Program Jurusan</td>
                   <td className="px-0 py-[2px] align-top">:</td>

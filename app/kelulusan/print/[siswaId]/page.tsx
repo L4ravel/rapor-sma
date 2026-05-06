@@ -494,8 +494,7 @@ export default function PrintKelulusanPage() {
                         <div className="mt-10">
                           <u>
                             <br />
-                            <br />
-                            <br />
+                            <br />                        
                             <b>{kepalaSekolah}</b>
                           </u>
                           <br />

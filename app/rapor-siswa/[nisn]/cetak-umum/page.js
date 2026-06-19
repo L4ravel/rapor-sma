@@ -60,6 +60,61 @@ function normalizeCapaian(v) {
   return String(v);
 }
 
+function getKelasAngka(kelas) {
+  const raw = String(kelas || "").trim();
+  const match = raw.match(/^(\d+)/);
+  if (!match) return null;
+
+  const angka = Number(match[1]);
+  return Number.isFinite(angka) ? angka : null;
+}
+
+function isKelasAkhir(kelas) {
+  const angka = getKelasAngka(kelas);
+  return angka !== null && angka >= 12;
+}
+
+function getKelasTujuan(kelas) {
+  const raw = String(kelas || "").trim();
+  if (!raw) return "-";
+
+  const match = raw.match(/^(\d+)(.*)$/);
+  if (!match) return raw;
+
+  const angka = Number(match[1]);
+  const sisa = match[2] || "";
+
+  if (!Number.isFinite(angka)) return raw;
+  return `${angka + 1}${sisa}`;
+}
+
+function getKeteranganNaikKelas(data) {
+  const kelasSekarang = String(data?.kelas || "-").trim();
+
+  if (isKelasAkhir(kelasSekarang)) {
+    return "";
+  }
+
+  const naikKelas = data?.naik_kelas !== false;
+  const kelasTujuan =
+    data?.kelas_tujuan && String(data.kelas_tujuan).trim() !== ""
+      ? String(data.kelas_tujuan).trim()
+      : getKelasTujuan(kelasSekarang);
+
+  if (
+    data?.keterangan_naik_kelas &&
+    String(data.keterangan_naik_kelas).trim() !== ""
+  ) {
+    return String(data.keterangan_naik_kelas).trim();
+  }
+
+  if (!naikKelas) {
+    return `Tidak naik kelas dan tetap di kelas ${kelasSekarang}`;
+  }
+
+  return `Naik kelas ke kelas ${kelasTujuan}`;
+}
+
 const FIX_KEYS = [
   "nisn",
   "nama_siswa",
@@ -71,6 +126,9 @@ const FIX_KEYS = [
   "alpha",
   "fase",
   "catatan_wali",
+  "naik_kelas",
+  "kelas_tujuan",
+  "keterangan_naik_kelas",
 ];
 
 export default function CetakRaporUmum() {
@@ -380,35 +438,35 @@ export default function CetakRaporUmum() {
             </table>
           </div>
 
-  {/* TANDA TANGAN WALI KELAS — PRINT ONLY (SAMA TEMPLATE HALAMAN 2) */}
-<div className="hidden print:block mt-10">
-  <div className="overflow-x-auto print:overflow-visible">
-    <table className="w-full text-[11px] leading-tight">
-      <tbody>
-        <tr>
-          <td className="w-1/2" />
-          <td className="w-1/2 align-top p-2 text-right">
-            <div>{waktuPembagianRaport}</div>
-            <div>Wali Kelas,</div>
+          {/* TANDA TANGAN WALI KELAS — PRINT ONLY (SAMA TEMPLATE HALAMAN 2) */}
+          <div className="hidden print:block mt-10">
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="w-full text-[11px] leading-tight">
+                <tbody>
+                  <tr>
+                    <td className="w-1/2" />
+                    <td className="w-1/2 align-top p-2 text-right">
+                      <div>{waktuPembagianRaport}</div>
+                      <div>Wali Kelas,</div>
 
-            <div className="mt-16 inline-block text-left">
-              <div className="font-bold underline">
-                {formatNamaGelar(wali?.nama_wali)}
-              </div>
-              <div>NIP.</div>
+                      <div className="mt-16 inline-block text-left">
+                        <div className="font-bold underline">
+                          {formatNamaGelar(wali?.nama_wali)}
+                        </div>
+                        <div>NIP.</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+          </div>
 
           {/* Ekstrakurikuler */}
           <div className="mt-3 overflow-x-auto print:overflow-visible page-break-before">
             <HeaderIdentitas />
 
-          <div className="hidden print:block mt-8" />
+            <div className="hidden print:block mt-8" />
             <table className="w-full border border-black border-collapse text-[11px]">
               <thead className="bg-purple-100 font-bold">
                 <tr>
@@ -481,6 +539,16 @@ export default function CetakRaporUmum() {
             </div>
           </div>
 
+          {/* Keterangan naik kelas */}
+          {!isKelasAkhir(data.kelas) && (
+            <div className="mt-4">
+              <div className="font-bold mb-1 text-[11px]">Keterangan</div>
+              <div className="border border-black p-2 text-[11px] leading-tight whitespace-pre-wrap break-words text-center">
+                {getKeteranganNaikKelas(data)}
+              </div>
+            </div>
+          )}
+
           {/* Catatan wali kelas (akhir halaman 1) */}
           <div className="mt-4">
             <div className="font-bold mb-1 text-[11px]">Catatan Wali Kelas</div>
@@ -494,8 +562,6 @@ export default function CetakRaporUmum() {
 
         {/* ========= HALAMAN 2 (TANDA TANGAN) ========= */}
         <div className="p-4 print:p-6 print:min-h-[297mm]">
-          
-
           <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-[11px] leading-tight">
               <tbody>
@@ -537,11 +603,11 @@ export default function CetakRaporUmum() {
                       )}
 
                       <div className="inline-block text-left">
-  <div className="font-bold underline">
-    {formatNamaGelar(bio?.kepala_sekolah)}
-  </div>
-  <div>NIP.</div>
-</div>
+                        <div className="font-bold underline">
+                          {formatNamaGelar(bio?.kepala_sekolah)}
+                        </div>
+                        <div>NIP.</div>
+                      </div>
                     </div>
                   </td>
                 </tr>

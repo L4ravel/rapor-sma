@@ -5,6 +5,35 @@ import Link from "next/link";
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
 
+function getKelasTujuan(kelas) {
+  const raw = String(kelas || "").trim();
+  if (!raw) return "";
+
+  const match = raw.match(/^(\d+)(.*)$/);
+  if (!match) return raw;
+
+  const angka = Number(match[1]);
+  const sisa = match[2] || "";
+
+  if (!Number.isFinite(angka)) return raw;
+  return `${angka + 1}${sisa}`;
+}
+
+function getKeteranganNaikKelas(row) {
+  const kelasSekarang = String(row?.kelas || "").trim();
+  const naikKelas = row?.naik_kelas !== false;
+  const kelasTujuan =
+    row?.kelas_tujuan && String(row.kelas_tujuan).trim() !== ""
+      ? String(row.kelas_tujuan).trim()
+      : getKelasTujuan(kelasSekarang);
+
+  if (!naikKelas) {
+    return `Tidak naik kelas dan tetap di kelas ${kelasSekarang || "-"}`;
+  }
+
+  return `Naik kelas ke kelas ${kelasTujuan || "-"}`;
+}
+
 export default function AbsensiSiswaPage() {
   const [data, setData] = useState([]);
   const [daftarKelas, setDaftarKelas] = useState([]);
@@ -35,6 +64,10 @@ export default function AbsensiSiswaPage() {
       // gabungkan
       const merged = siswa.map((s) => {
         const r = rap[s.nisn] || {};
+        const naikKelas = r.naik_kelas ?? true;
+        const kelasTujuan =
+          r.kelas_tujuan ?? (naikKelas ? getKelasTujuan(s.kelas) : s.kelas);
+
         return {
           ...s,
           sakit: r.sakit ?? "",
@@ -45,6 +78,16 @@ export default function AbsensiSiswaPage() {
           poin: r.poin ?? "",
           // field lock rapor
           locked: r.locked ?? false,
+          // field kenaikan kelas
+          naik_kelas: naikKelas,
+          kelas_tujuan: kelasTujuan,
+          keterangan_naik_kelas:
+            r.keterangan_naik_kelas ??
+            getKeteranganNaikKelas({
+              kelas: s.kelas,
+              naik_kelas: naikKelas,
+              kelas_tujuan: kelasTujuan,
+            }),
         };
       });
 
@@ -74,11 +117,46 @@ export default function AbsensiSiswaPage() {
     .sort((a, b) => (a.nama_siswa || "").localeCompare(b.nama_siswa || ""));
   const visible = filtered.slice(0, 50);
 
-  // Simpan semua (termasuk catatan_wali, poin & locked) untuk kelas yang sedang dipilih
+  const toggleNaikKelas = (rowId) => {
+    setData((prev) =>
+      prev.map((r) => {
+        if (r.id !== rowId) return r;
+
+        const nextNaik = r.naik_kelas === false;
+        const nextKelasTujuan = nextNaik ? getKelasTujuan(r.kelas) : r.kelas;
+        const nextRow = {
+          ...r,
+          naik_kelas: nextNaik,
+          kelas_tujuan: nextKelasTujuan,
+        };
+
+        return {
+          ...nextRow,
+          keterangan_naik_kelas: getKeteranganNaikKelas(nextRow),
+        };
+      })
+    );
+  };
+
+  // Simpan semua (termasuk catatan_wali, poin, locked & naik_kelas) untuk kelas yang sedang dipilih
   const handleSaveAll = async () => {
     try {
       setSaving(true);
       for (const row of filtered) {
+        const naikKelas = row.naik_kelas !== false;
+        const kelasTujuan =
+          row.kelas_tujuan && String(row.kelas_tujuan).trim() !== ""
+            ? String(row.kelas_tujuan).trim()
+            : naikKelas
+            ? getKelasTujuan(row.kelas)
+            : row.kelas;
+
+        const nextRow = {
+          ...row,
+          naik_kelas: naikKelas,
+          kelas_tujuan: kelasTujuan,
+        };
+
         const ref = doc(collection(db, "raport"), String(row.nisn));
         await setDoc(
           ref,
@@ -93,11 +171,15 @@ export default function AbsensiSiswaPage() {
             poin: row.poin ?? "",
             // simpan status lock rapor
             locked: row.locked ?? false,
+            // simpan status kenaikan kelas
+            naik_kelas: naikKelas,
+            kelas_tujuan: kelasTujuan,
+            keterangan_naik_kelas: getKeteranganNaikKelas(nextRow),
           },
           { merge: true }
         );
       }
-      alert("✅ Absensi & Catatan wali berhasil disimpan!");
+      alert("✅ Absensi, Catatan wali & Kenaikan kelas berhasil disimpan!");
     } catch (e) {
       console.error(e);
       alert("⚠️ Gagal menyimpan data");
@@ -219,7 +301,9 @@ export default function AbsensiSiswaPage() {
                         onChange={(e) =>
                           setData((prev) =>
                             prev.map((r) =>
-                              r.id === row.id ? { ...r, poin: e.target.value } : r
+                              r.id === row.id
+                                ? { ...r, poin: e.target.value }
+                                : r
                             )
                           )
                         }
@@ -240,7 +324,9 @@ export default function AbsensiSiswaPage() {
                       onChange={(e) =>
                         setData((prev) =>
                           prev.map((r) =>
-                            r.id === row.id ? { ...r, catatan_wali: e.target.value } : r
+                            r.id === row.id
+                              ? { ...r, catatan_wali: e.target.value }
+                              : r
                           )
                         )
                       }
@@ -249,20 +335,43 @@ export default function AbsensiSiswaPage() {
                     />
                   </div>
 
-                  {/* Tombol Lock Rapor */}
-                  <div className="mt-3 flex justify-end">
+                  {/* Tombol Lock Rapor + Naik Kelas */}
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
                     <button
                       type="button"
                       onClick={() =>
                         setData((prev) =>
-                          prev.map((r) => (r.id === row.id ? { ...r, locked: !r.locked } : r))
+                          prev.map((r) =>
+                            r.id === row.id
+                              ? { ...r, locked: !r.locked }
+                              : r
+                          )
                         )
                       }
                       className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold border transition ${
-                        row.locked ? "bg-red-100 text-red-700 border-red-300" : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                        row.locked
+                          ? "bg-red-100 text-red-700 border-red-300"
+                          : "bg-emerald-100 text-emerald-700 border-emerald-300"
                       }`}
                     >
                       <span>{row.locked ? "🔒 Terkunci" : "🔓 Terbuka"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleNaikKelas(row.id)}
+                      title={getKeteranganNaikKelas(row)}
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold border transition ${
+                        row.naik_kelas === false
+                          ? "bg-amber-100 text-amber-800 border-amber-300"
+                          : "bg-sky-100 text-sky-700 border-sky-300"
+                      }`}
+                    >
+                      <span>
+                        {row.naik_kelas === false
+                          ? "↩️ Tidak Naik"
+                          : "⬆️ Naik"}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -312,6 +421,10 @@ export default function AbsensiSiswaPage() {
                     <th className="p-2 w-16 border border-gray-300/50 text-center text-[10px]">
                       Lock
                     </th>
+                    {/* Kolom Naik Kelas */}
+                    <th className="p-2 w-20 border border-gray-300/50 text-center text-[10px]">
+                      Kenaikan
+                    </th>
                   </tr>
                 </thead>
 
@@ -319,7 +432,9 @@ export default function AbsensiSiswaPage() {
                   {visible.map((row, idx) => (
                     <tr
                       key={row.id}
-                      className={`transition hover:bg-sky-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                      className={`transition hover:bg-sky-50 ${
+                        idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                      }`}
                     >
                       <td className="p-1 text-center border border-gray-300/50 text-black">
                         {idx + 1}
@@ -341,14 +456,21 @@ export default function AbsensiSiswaPage() {
                       </td>
 
                       {["sakit", "izin", "alpha"].map((field) => (
-                        <td key={field} className="p-2 w-12 text-center border border-gray-300/50 align-top">
+                        <td
+                          key={field}
+                          className="p-2 w-12 text-center border border-gray-300/50 align-top"
+                        >
                           <input
                             type="number"
                             min={0}
                             value={row[field] ?? ""}
                             onChange={(e) =>
                               setData((prev) =>
-                                prev.map((r) => (r.id === row.id ? { ...r, [field]: e.target.value } : r))
+                                prev.map((r) =>
+                                  r.id === row.id
+                                    ? { ...r, [field]: e.target.value }
+                                    : r
+                                )
                               )
                             }
                             onWheel={(e) => e.currentTarget.blur()}
@@ -363,7 +485,11 @@ export default function AbsensiSiswaPage() {
                           value={row.catatan_wali ?? ""}
                           onChange={(e) =>
                             setData((prev) =>
-                              prev.map((r) => (r.id === row.id ? { ...r, catatan_wali: e.target.value } : r))
+                              prev.map((r) =>
+                                r.id === row.id
+                                  ? { ...r, catatan_wali: e.target.value }
+                                  : r
+                              )
                             )
                           }
                           className="w-full border rounded-md px-3 py-2 text-xs text-black focus:ring-2 focus:ring-indigo-400 resize-y"
@@ -379,7 +505,11 @@ export default function AbsensiSiswaPage() {
                           value={row.poin ?? ""}
                           onChange={(e) =>
                             setData((prev) =>
-                              prev.map((r) => (r.id === row.id ? { ...r, poin: e.target.value } : r))
+                              prev.map((r) =>
+                                r.id === row.id
+                                  ? { ...r, poin: e.target.value }
+                                  : r
+                              )
                             )
                           }
                           onWheel={(e) => e.currentTarget.blur()}
@@ -393,14 +523,36 @@ export default function AbsensiSiswaPage() {
                           type="button"
                           onClick={() =>
                             setData((prev) =>
-                              prev.map((r) => (r.id === row.id ? { ...r, locked: !r.locked } : r))
+                              prev.map((r) =>
+                                r.id === row.id
+                                  ? { ...r, locked: !r.locked }
+                                  : r
+                              )
                             )
                           }
                           className={`inline-flex items-center justify-center gap-1 px-3 py-1 rounded-full text-[10px] font-semibold border transition ${
-                            row.locked ? "bg-red-100 text-red-700 border-red-300" : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                            row.locked
+                              ? "bg-red-100 text-red-700 border-red-300"
+                              : "bg-emerald-100 text-emerald-700 border-emerald-300"
                           }`}
                         >
                           {row.locked ? "🔒 Terkunci" : "🔓 Terbuka"}
+                        </button>
+                      </td>
+
+                      {/* Tombol Naik / Tidak Naik */}
+                      <td className="p-2 text-center border border-gray-300/50 align-middle">
+                        <button
+                          type="button"
+                          onClick={() => toggleNaikKelas(row.id)}
+                          title={getKeteranganNaikKelas(row)}
+                          className={`inline-flex items-center justify-center gap-1 px-3 py-1 rounded-full text-[10px] font-semibold border transition ${
+                            row.naik_kelas === false
+                              ? "bg-amber-100 text-amber-800 border-amber-300"
+                              : "bg-sky-100 text-sky-700 border-sky-300"
+                          }`}
+                        >
+                          {row.naik_kelas === false ? "↩️ Tidak Naik" : "⬆️ Naik"}
                         </button>
                       </td>
                     </tr>
@@ -408,7 +560,7 @@ export default function AbsensiSiswaPage() {
 
                   {visible.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="text-center p-4 text-gray-500">
+                      <td colSpan={11} className="text-center p-4 text-gray-500">
                         Tidak ada data untuk kelas ini.
                       </td>
                     </tr>

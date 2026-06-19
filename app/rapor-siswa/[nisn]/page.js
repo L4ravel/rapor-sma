@@ -12,7 +12,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
-import { Trophy, Award, Star, Sparkles, X } from 'lucide-react';
+import { Trophy, Award, Star, Sparkles, X } from "lucide-react";
 
 const FIX_KEYS = [
   "nisn",
@@ -26,7 +26,10 @@ const FIX_KEYS = [
   "fase",
   "catatan_wali",
   "locked",
-  "poin", 
+  "poin",
+  "naik_kelas",
+  "kelas_tujuan",
+  "keterangan_naik_kelas",
 ];
 
 // === SAFE KEY HELPER (ubah "Tajwid/Tahsin" → "TAJWID_TAHSIN") ===
@@ -94,6 +97,61 @@ function normalizeCapaian(v) {
   return String(v);
 }
 
+function getKelasAngka(kelas) {
+  const raw = String(kelas || "").trim();
+  const match = raw.match(/^(\d+)/);
+  if (!match) return null;
+
+  const angka = Number(match[1]);
+  return Number.isFinite(angka) ? angka : null;
+}
+
+function isKelasAkhir(kelas) {
+  const angka = getKelasAngka(kelas);
+  return angka !== null && angka >= 12;
+}
+
+function getKelasTujuan(kelas) {
+  const raw = String(kelas || "").trim();
+  if (!raw) return "-";
+
+  const match = raw.match(/^(\d+)(.*)$/);
+  if (!match) return raw;
+
+  const angka = Number(match[1]);
+  const sisa = match[2] || "";
+
+  if (!Number.isFinite(angka)) return raw;
+  return `${angka + 1}${sisa}`;
+}
+
+function getKeteranganNaikKelas(rap) {
+  const kelasSekarang = String(rap?.kelas || "-").trim();
+
+  if (isKelasAkhir(kelasSekarang)) {
+    return "";
+  }
+
+  const naikKelas = rap?.naik_kelas !== false;
+  const kelasTujuan =
+    rap?.kelas_tujuan && String(rap.kelas_tujuan).trim() !== ""
+      ? String(rap.kelas_tujuan).trim()
+      : getKelasTujuan(kelasSekarang);
+
+  if (
+    rap?.keterangan_naik_kelas &&
+    String(rap.keterangan_naik_kelas).trim() !== ""
+  ) {
+    return String(rap.keterangan_naik_kelas).trim();
+  }
+
+  if (!naikKelas) {
+    return `Tidak naik kelas dan tetap di kelas ${kelasSekarang}`;
+  }
+
+  return `Naik kelas ke kelas ${kelasTujuan}`;
+}
+
 export default function DetailRaporSiswa() {
   const { nisn } = useParams();
   const router = useRouter();
@@ -107,15 +165,14 @@ export default function DetailRaporSiswa() {
   const [loadingDs, setLoadingDs] = useState(true);
   const [rankInfo, setRankInfo] = useState(null);
   const [showRankModal, setShowRankModal] = useState(false);
-const [rankLoading, setRankLoading] = useState(false);
+  const [rankLoading, setRankLoading] = useState(false);
   const rap = rapor || {};
-
 
   // Check redirect hanya sekali dan stabil
   useEffect(() => {
     if (redirectChecked) return;
 
-    const RELEASE = new Date("2026-03-25T08:00:00+08:00").getTime();
+    const RELEASE = new Date("2026-06-20T08:00:00+08:00").getTime();
     const now = Date.now();
 
     let role = null;
@@ -216,20 +273,25 @@ const [rankLoading, setRankLoading] = useState(false);
   }, []);
 
   const FASE_E_KELAS = [
-  "10A1","10A2","10A3","10A4",
-  "10B1","10B2","10B3","10B4",
-];
+    "10A1",
+    "10A2",
+    "10A3",
+    "10A4",
+    "10B1",
+    "10B2",
+    "10B3",
+    "10B4",
+  ];
 
-function resolveFase(kelas, faseDb) {
-  if (FASE_E_KELAS.includes(String(kelas || "").toUpperCase())) {
-    return "E";
+  function resolveFase(kelas, faseDb) {
+    if (FASE_E_KELAS.includes(String(kelas || "").toUpperCase())) {
+      return "E";
+    }
+    return faseDb || "-";
   }
-  return faseDb || "-";
-}
 
   // ==== Semua hooks di bawah ini SELALU dipanggil ====
 
-  
   const allKeys = useMemo(() => Object.keys(rap), [rap]);
 
   const capaianMap = useMemo(() => {
@@ -302,89 +364,83 @@ function resolveFase(kelas, faseDb) {
   }, [nilaiKeys, namaUmumSet, rap, capaianMap, idxUmum]);
 
   // Rows PONDOK: hanya mapel yang ada di dataset pondok
-const rowsPondok = useMemo(() => {
-  if (!dsPondok.length) return [];
+  const rowsPondok = useMemo(() => {
+    if (!dsPondok.length) return [];
 
-  const rows = dsPondok
-    .map((d) => {
-      const name = d.nama || "";
-      const sk = safeKey(name);
+    const rows = dsPondok
+      .map((d) => {
+        const name = d.nama || "";
 
-      // 1️⃣ cek nested: rap.pondok[name] / rap.pondok[SAFE]
-      const nested = readPondok(rap, name);
-      let rawNilai =
-        nested?.nilai !== undefined ? nested.nilai : nested;
+        // 1️⃣ cek nested: rap.pondok[name] / rap.pondok[SAFE]
+        const nested = readPondok(rap, name);
+        let rawNilai = nested?.nilai !== undefined ? nested.nilai : nested;
 
-      // 2️⃣ cek flat: rap[name] / rap[SAFE]
-      if (rawNilai === undefined) {
-        rawNilai = readFlat(rap, name);
-      }
-
-      const nilai = normalizeNilai(rawNilai);
-      return { mapel: name, nilai };
-    })
-    .filter((r) => hasValue(r.nilai));
-
-  // urut sesuai dataset mapel pondok
-  rows.sort((a, b) => {
-    const ia = idxPondok.get(String(a.mapel).toLowerCase());
-    const ib = idxPondok.get(String(b.mapel).toLowerCase());
-    if (ia != null && ib != null && ia !== ib) return ia - ib;
-    return a.mapel.localeCompare(b.mapel, "id");
-  });
-
-  return rows;
-}, [dsPondok, rap, idxPondok]);
-
-useEffect(() => {
-  if (!rap?.nisn || !rap?.kelas) return;
-
-  const runRank = async () => {
-    // 1. ambil semua raport
-    const snap = await getDocs(collection(db, "raport"));
-
-    // 2. ambil hanya raport siswa DI KELAS YANG SAMA
-    const kelasTarget = String(rap.kelas).toLowerCase();
-
-    const totals = snap.docs
-      .map((doc) => {
-        const data = doc.data();
-
-        // ❗ filter kelas
-        if (String(data.kelas).toLowerCase() !== kelasTarget) {
-          return null;
+        // 2️⃣ cek flat: rap[name] / rap[SAFE]
+        if (rawNilai === undefined) {
+          rawNilai = readFlat(rap, name);
         }
 
-        // 3. jumlahkan semua nilai mapel (angka saja)
-        const totalNilai = Object.values(data)
-          .filter((v) => typeof v === "number")
-          .reduce((a, b) => a + b, 0);
-
-        return {
-          nisn: doc.id,
-          total: totalNilai,
-        };
+        const nilai = normalizeNilai(rawNilai);
+        return { mapel: name, nilai };
       })
-      .filter(Boolean); // buang null
+      .filter((r) => hasValue(r.nilai));
 
-    // 4. urutkan
-    totals.sort((a, b) => b.total - a.total);
-
-    // 5. cari ranking siswa ini
-    const rank =
-      totals.findIndex((t) => t.nisn === rap.nisn) + 1;
-
-    setRankInfo({
-      rank,
-      totalSiswa: totals.length,
+    // urut sesuai dataset mapel pondok
+    rows.sort((a, b) => {
+      const ia = idxPondok.get(String(a.mapel).toLowerCase());
+      const ib = idxPondok.get(String(b.mapel).toLowerCase());
+      if (ia != null && ib != null && ia !== ib) return ia - ib;
+      return a.mapel.localeCompare(b.mapel, "id");
     });
-  };
 
-  runRank();
-}, [rap]);
+    return rows;
+  }, [dsPondok, rap, idxPondok]);
 
+  useEffect(() => {
+    if (!rap?.nisn || !rap?.kelas) return;
 
+    const runRank = async () => {
+      // 1. ambil semua raport
+      const snap = await getDocs(collection(db, "raport"));
 
+      // 2. ambil hanya raport siswa DI KELAS YANG SAMA
+      const kelasTarget = String(rap.kelas).toLowerCase();
+
+      const totals = snap.docs
+        .map((doc) => {
+          const data = doc.data();
+
+          // ❗ filter kelas
+          if (String(data.kelas).toLowerCase() !== kelasTarget) {
+            return null;
+          }
+
+          // 3. jumlahkan semua nilai mapel (angka saja)
+          const totalNilai = Object.values(data)
+            .filter((v) => typeof v === "number")
+            .reduce((a, b) => a + b, 0);
+
+          return {
+            nisn: doc.id,
+            total: totalNilai,
+          };
+        })
+        .filter(Boolean); // buang null
+
+      // 4. urutkan
+      totals.sort((a, b) => b.total - a.total);
+
+      // 5. cari ranking siswa ini
+      const rank = totals.findIndex((t) => t.nisn === rap.nisn) + 1;
+
+      setRankInfo({
+        rank,
+        totalSiswa: totals.length,
+      });
+    };
+
+    runRank();
+  }, [rap]);
 
   // ==== Setelah semua hooks dipanggil, baru conditional return ====
 
@@ -606,9 +662,7 @@ useEffect(() => {
               </tr>
               <tr>
                 <td className="p-2 border border-gray-200">Nilai</td>
-                <td className="p-2 border border-gray-200">
-                  {nilai || "0"}
-                </td>
+                <td className="p-2 border border-gray-200">{nilai || "0"}</td>
               </tr>
             </tbody>
           </table>
@@ -683,139 +737,152 @@ useEffect(() => {
     </div>
   );
 
-const TableRanking = () => {
-  const [showRankModal, setShowRankModal] = useState(false);
-  const [rankLoading, setRankLoading] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
+  const TableRanking = () => {
+    const [showRankModal, setShowRankModal] = useState(false);
+    const [rankLoading, setRankLoading] = useState(false);
+    const [showConfetti, setShowConfetti] = useState(false);
 
-  // ⬅️ RETURN SETELAH HOOK
-  if (!rankInfo) return null;
+    // ⬅️ RETURN SETELAH HOOK
+    if (!rankInfo) return null;
 
-  const handleOpen = () => {
-    setRankLoading(true);
-    setShowRankModal(true);
+    const handleOpen = () => {
+      setRankLoading(true);
+      setShowRankModal(true);
 
-    setTimeout(() => {
-      setRankLoading(false);
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3000);
-    }, 4000);
-  };
+      setTimeout(() => {
+        setRankLoading(false);
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+      }, 4000);
+    };
 
-  return (
-    <>
-      {/* ===== BUTTON CARD ===== */}
-      <div className="relative bg-gradient-to-br from-white via-indigo-50 to-purple-50 shadow-xl rounded-2xl mt-4 p-8 text-center overflow-hidden border border-indigo-100">
-        <button
-          onClick={handleOpen}
-          className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-bold text-lg shadow-2xl hover:scale-105 transition"
-        >
-          🏆 Lihat Rangking
-        </button>
-      </div>
+    return (
+      <>
+        {/* ===== BUTTON CARD ===== */}
+        <div className="relative bg-gradient-to-br from-white via-indigo-50 to-purple-50 shadow-xl rounded-2xl mt-4 p-8 text-center overflow-hidden border border-indigo-100">
+          <button
+            onClick={handleOpen}
+            className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-bold text-lg shadow-2xl hover:scale-105 transition"
+          >
+            🏆 Lihat Rangking
+          </button>
+        </div>
 
-      {/* ===== MODAL ===== */}
-      {showRankModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-hidden">
-          <div className="bg-white rounded-3xl shadow-2xl w-[90%] max-w-[380px] text-center p-6 md:p-8">
-            {rankLoading ? (
-              <div className="flex flex-col items-center gap-4 py-8">
-                <span className="text-6xl animate-bounce">🏆</span>
-                <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                <div className="text-gray-700 font-semibold">
-                  Menghitung peringkat...
-                </div>
-              </div>
-            ) : (
-              <>
-                <h3 className="text-2xl font-extrabold text-indigo-600 mb-6">
-                  🏆 Peringkat Kelas
-                </h3>
-
-                {/* === RANK DISPLAY (FADE → TERANG) === */}
-               <div className="bg-white rounded-3xl p-5 md:p-8 mb-6 shadow-xl border-2 border-indigo-100 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-100/40 to-transparent animate-revealSweep" />
-
-                  <div className="relative z-10">
-                    <div className="text-xs font-bold text-gray-500 uppercase mb-3">
-                      Rangking
-                    </div>
-
-                    <div className="text-6xl md:text-8xl font-black bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent opacity-0 animate-rankReveal">
-                      {rankInfo.rank}
-                    </div>
-
-                    <div className="mt-4 text-sm font-semibold text-gray-600 opacity-0 animate-rankSubReveal">
-                      dari{" "}
-                      <span className="text-xl font-bold text-indigo-600">
-                        {rankInfo.totalSiswa}
-                      </span>{" "}
-                      siswa
-                    </div>
+        {/* ===== MODAL ===== */}
+        {showRankModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-hidden">
+            <div className="bg-white rounded-3xl shadow-2xl w-[90%] max-w-[380px] text-center p-6 md:p-8">
+              {rankLoading ? (
+                <div className="flex flex-col items-center gap-4 py-8">
+                  <span className="text-6xl animate-bounce">🏆</span>
+                  <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="text-gray-700 font-semibold">
+                    Menghitung peringkat...
                   </div>
                 </div>
+              ) : (
+                <>
+                  <h3 className="text-2xl font-extrabold text-indigo-600 mb-6">
+                    🏆 Peringkat Kelas
+                  </h3>
 
-                <button
-                  onClick={() => setShowRankModal(false)}
-                  className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition"
-                >
-                  Tutup
-                </button>
-              </>
-            )}
+                  {/* === RANK DISPLAY (FADE → TERANG) === */}
+                  <div className="bg-white rounded-3xl p-5 md:p-8 mb-6 shadow-xl border-2 border-indigo-100 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-100/40 to-transparent animate-revealSweep" />
+
+                    <div className="relative z-10">
+                      <div className="text-xs font-bold text-gray-500 uppercase mb-3">
+                        Rangking
+                      </div>
+
+                      <div className="text-6xl md:text-8xl font-black bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent opacity-0 animate-rankReveal">
+                        {rankInfo.rank}
+                      </div>
+
+                      <div className="mt-4 text-sm font-semibold text-gray-600 opacity-0 animate-rankSubReveal">
+                        dari{" "}
+                        <span className="text-xl font-bold text-indigo-600">
+                          {rankInfo.totalSiswa}
+                        </span>{" "}
+                        siswa
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowRankModal(false)}
+                    className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition"
+                  >
+                    Tutup
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        <style jsx>{`
+          @keyframes rankReveal {
+            from {
+              opacity: 0;
+              filter: blur(6px);
+              transform: scale(0.9);
+            }
+            to {
+              opacity: 1;
+              filter: blur(0);
+              transform: scale(1);
+            }
+          }
+          @keyframes rankSubReveal {
+            from {
+              opacity: 0;
+              transform: translateY(6px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          @keyframes revealSweep {
+            from {
+              transform: translateX(-100%);
+            }
+            to {
+              transform: translateX(100%);
+            }
+          }
+          .animate-rankReveal {
+            animation: rankReveal 0.8s ease-out forwards;
+          }
+          .animate-rankSubReveal {
+            animation: rankSubReveal 0.5s ease-out forwards;
+            animation-delay: 0.3s;
+          }
+          .animate-revealSweep {
+            animation: revealSweep 1.2s ease-in-out;
+          }
+        `}</style>
+      </>
+    );
+  };
+
+  const TableKeteranganNaikKelas = () => {
+    if (isKelasAkhir(rap.kelas)) return null;
+
+    return (
+      <div className="bg-white shadow rounded-lg mt-6">
+        <h2 className="text-lg font-semibold text-black p-4 border-b">
+          📌 Keterangan
+        </h2>
+        <div className="p-5">
+          <div className="rounded-md bg-gray-50 border border-gray-200 p-4 text-sm text-gray-800 leading-relaxed">
+            {getKeteranganNaikKelas(rap)}
           </div>
         </div>
-      )}
-
-      <style jsx>{`
-        @keyframes rankReveal {
-          from {
-            opacity: 0;
-            filter: blur(6px);
-            transform: scale(0.9);
-          }
-          to {
-            opacity: 1;
-            filter: blur(0);
-            transform: scale(1);
-          }
-        }
-        @keyframes rankSubReveal {
-          from {
-            opacity: 0;
-            transform: translateY(6px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes revealSweep {
-          from {
-            transform: translateX(-100%);
-          }
-          to {
-            transform: translateX(100%);
-          }
-        }
-        .animate-rankReveal {
-          animation: rankReveal 0.8s ease-out forwards;
-        }
-        .animate-rankSubReveal {
-          animation: rankSubReveal 0.5s ease-out forwards;
-          animation-delay: 0.3s;
-        }
-        .animate-revealSweep {
-          animation: revealSweep 1.2s ease-in-out;
-        }
-      `}</style>
-    </>
-  );
-};
-
-
-
-
+      </div>
+    );
+  };
 
   const TableCatatanWali = () => (
     <div className="bg-white shadow rounded-lg mt-6">
@@ -874,9 +941,7 @@ const TableRanking = () => {
                 <div className="flex">
                   <span className="w-32 md:w-36">Alamat</span>
                   <span className="w-4 text-center">:</span>
-                  <span className="break-words">
-                    {bio?.alamat || "—"}
-                  </span>
+                  <span className="break-words">{bio?.alamat || "—"}</span>
                 </div>
               </div>
 
@@ -896,15 +961,15 @@ const TableRanking = () => {
                 <div className="flex">
                   <span className="w-28 md:w-32">Fase</span>
                   <span className="w-4 text-center">:</span>
-                 <span>{resolveFase(biodata.kelas, bio?.fase || biodata.fase)}</span>
+                  <span>
+                    {resolveFase(biodata.kelas, bio?.fase || biodata.fase)}
+                  </span>
                 </div>
                 <div className="flex">
                   <span className="w-28 md:w-32">Tahun Pelajaran</span>
                   <span className="w-4 text-center">:</span>
                   {/* ambil dulu yang umum dari bio */}
-                  <span>
-                    {bio?.tahunPelajaranUmum || biodata.tahun || "-"}
-                  </span>
+                  <span>{bio?.tahunPelajaranUmum || biodata.tahun || "-"}</span>
                 </div>
               </div>
             </div>
@@ -920,6 +985,7 @@ const TableRanking = () => {
         <TableAbsensi />
         <TablePoinPelanggaran />
         {/* <TableRanking /> */}
+        <TableKeteranganNaikKelas />
         <TableCatatanWali />
 
         {/* Cetak */}

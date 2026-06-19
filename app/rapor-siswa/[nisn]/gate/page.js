@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 /* ================== Konfigurasi ================== */
-const RELEASE_AT_ISO = "2026-03-25T08:00:00+08:00";
+const RELEASE_AT_ISO = "2026-06-20T08:00:00+08:00";
 const TITLE = "Sistem Rapor Digital";
 
 /* ================== Util waktu ================== */

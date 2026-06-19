@@ -51,7 +51,6 @@ const safeKey = (name) =>
     .replace(/\//g, "_")
     .replace(/\./g, "_")
     .trim();
-    
 
 // Normalisasi nilai → angka murni (untuk total/rata2)
 function normalizeToNumber(v) {
@@ -167,11 +166,66 @@ function formatNamaGelar(str) {
   return `${nama} ${gelar}`;
 }
 
+function getKelasAngka(kelas) {
+  const raw = String(kelas || "").trim();
+  const match = raw.match(/^(\d+)/);
+  if (!match) return null;
+
+  const angka = Number(match[1]);
+  return Number.isFinite(angka) ? angka : null;
+}
+
+function isKelasAkhir(kelas) {
+  const angka = getKelasAngka(kelas);
+  return angka !== null && angka >= 12;
+}
+
+function getKelasTujuan(kelas) {
+  const raw = String(kelas || "").trim();
+  if (!raw) return "-";
+
+  const match = raw.match(/^(\d+)(.*)$/);
+  if (!match) return raw;
+
+  const angka = Number(match[1]);
+  const sisa = match[2] || "";
+
+  if (!Number.isFinite(angka)) return raw;
+  return `${angka + 1}${sisa}`;
+}
+
+function getKeteranganNaikKelas(rapor) {
+  const kelasSekarang = String(rapor?.kelas || "-").trim();
+
+  if (isKelasAkhir(kelasSekarang)) {
+    return "";
+  }
+
+  const naikKelas = rapor?.naik_kelas !== false;
+  const kelasTujuan =
+    rapor?.kelas_tujuan && String(rapor.kelas_tujuan).trim() !== ""
+      ? String(rapor.kelas_tujuan).trim()
+      : getKelasTujuan(kelasSekarang);
+
+  if (
+    rapor?.keterangan_naik_kelas &&
+    String(rapor.keterangan_naik_kelas).trim() !== ""
+  ) {
+    return String(rapor.keterangan_naik_kelas).trim();
+  }
+
+  if (!naikKelas) {
+    return `Tidak naik kelas dan tetap di kelas ${kelasSekarang}`;
+  }
+
+  return `Naik kelas ke kelas ${kelasTujuan}`;
+}
+
 export default function CetakRaporPondok() {
   const params = useParams();
   const nisnParam = params?.nisn ? String(params.nisn) : "";
   const [rapor, setRapor] = useState(null);
-  const [datasetPondok, setDatasetPondok] = useState([]); // [{nama, arab?}]
+  const [datasetPondok, setDatasetPondok] = useState([]);
   const [loading, setLoading] = useState(true);
   const [namaArab, setNamaArab] = useState("");
 
@@ -276,79 +330,74 @@ export default function CetakRaporPondok() {
 
   /* ===================== Derivasi Data ===================== */
 
-const { biodata, rowsPondok } = useMemo(() => {
-  if (!rapor) return { biodata: {}, rowsPondok: [] };
+  const { biodata, rowsPondok } = useMemo(() => {
+    if (!rapor) return { biodata: {}, rowsPondok: [] };
 
-  // index dataset untuk ordering
-  const idxPondok = new Map();
-  datasetPondok.forEach((d, i) =>
-    idxPondok.set(String(d.nama || "").toLowerCase(), i)
-  );
-
-  // Untuk setiap mapel di dataset_mapel_pondok (urutan natural dataset),
-  // cari nilai di beberapa tempat:
-  // 1) nested: rapor.pondok[orig]?.nilai  OR rapor.pondok[safe]?.nilai
-  // 2) flat: rapor[orig] OR rapor[safe]
-  const rows = (datasetPondok || [])
-    .map((d) => {
-      const orig = d.nama || "";
-      const sk = safeKey(orig);
-
-      let rawVal;
-
-      // nested pondok
-      if (rapor?.pondok) {
-        const nOrig = rapor.pondok[orig];
-        const nSafe = rapor.pondok[sk];
-        if (nOrig !== undefined && nOrig != null) {
-          // nested could be object { nilai: 88 } or plain value
-          rawVal = nOrig?.nilai ?? nOrig;
-        } else if (nSafe !== undefined && nSafe != null) {
-          rawVal = nSafe?.nilai ?? nSafe;
-        }
-      }
-
-   
-      // flat fallback (CASE-INSENSITIVE)
-if (rawVal === undefined) {
-  if (rapor[orig] !== undefined && rapor[orig] !== null) {
-    rawVal = rapor[orig];
-  } else if (rapor[sk] !== undefined && rapor[sk] !== null) {
-    rawVal = rapor[sk];
-  } else {
-    // 🔑 kunci utama: cari key tanpa peduli besar-kecil
-    const foundKey = Object.keys(rapor).find(
-      (k) => k.toUpperCase() === sk
+    // index dataset untuk ordering
+    const idxPondok = new Map();
+    datasetPondok.forEach((d, i) =>
+      idxPondok.set(String(d.nama || "").toLowerCase(), i)
     );
-    if (foundKey) rawVal = rapor[foundKey];
-  }
-}
 
+    // Untuk setiap mapel di dataset_mapel_pondok (urutan natural dataset),
+    // cari nilai di beberapa tempat:
+    // 1) nested: rapor.pondok[orig]?.nilai OR rapor.pondok[safe]?.nilai
+    // 2) flat: rapor[orig] OR rapor[safe]
+    const rows = (datasetPondok || [])
+      .map((d) => {
+        const orig = d.nama || "";
+        const sk = safeKey(orig);
 
-      const nilaiNum = normalizeToNumber(rawVal);
-      return { mapel: orig, nilai: nilaiNum };
-    })
-    // hanya tampilkan yg punya nilai valid (sesuai alur lama)
-    .filter((r) => !isNaN(r.nilai));
+        let rawVal;
 
-  // jaga urutan sesuai dataset (dataset sudah dipetakan sehingga map preserve order)
-  rows.sort((a, b) => {
-    const ia = idxPondok.get(String(a.mapel).toLowerCase());
-    const ib = idxPondok.get(String(b.mapel).toLowerCase());
-    if (ia != null && ib != null && ia !== ib) return ia - ib;
-    return String(a.mapel).localeCompare(String(b.mapel), "id");
-  });
+        // nested pondok
+        if (rapor?.pondok) {
+          const nOrig = rapor.pondok[orig];
+          const nSafe = rapor.pondok[sk];
+          if (nOrig !== undefined && nOrig != null) {
+            rawVal = nOrig?.nilai ?? nOrig;
+          } else if (nSafe !== undefined && nSafe != null) {
+            rawVal = nSafe?.nilai ?? nSafe;
+          }
+        }
 
-  const bio = {
-    nisn: rapor.nisn || "-",
-    nama: rapor.nama_siswa || "-",
-    kelas: rapor.kelas || "-",
-    semester: rapor.semester || "-",
-    tahun: rapor.tahun_pelajaran || "-",
-  };
+        // flat fallback (CASE-INSENSITIVE)
+        if (rawVal === undefined) {
+          if (rapor[orig] !== undefined && rapor[orig] !== null) {
+            rawVal = rapor[orig];
+          } else if (rapor[sk] !== undefined && rapor[sk] !== null) {
+            rawVal = rapor[sk];
+          } else {
+            const foundKey = Object.keys(rapor).find(
+              (k) => k.toUpperCase() === sk
+            );
+            if (foundKey) rawVal = rapor[foundKey];
+          }
+        }
 
-  return { biodata: bio, rowsPondok: rows };
-}, [rapor, datasetPondok]);
+        const nilaiNum = normalizeToNumber(rawVal);
+        return { mapel: orig, nilai: nilaiNum };
+      })
+      .filter((r) => !isNaN(r.nilai));
+
+    // jaga urutan sesuai dataset
+    rows.sort((a, b) => {
+      const ia = idxPondok.get(String(a.mapel).toLowerCase());
+      const ib = idxPondok.get(String(b.mapel).toLowerCase());
+      if (ia != null && ib != null && ia !== ib) return ia - ib;
+      return String(a.mapel).localeCompare(String(b.mapel), "id");
+    });
+
+    const bio = {
+      nisn: rapor.nisn || "-",
+      nama: rapor.nama_siswa || "-",
+      kelas: rapor.kelas || "-",
+      semester: rapor.semester || "-",
+      tahun: rapor.tahun_pelajaran || "-",
+    };
+
+    return { biodata: bio, rowsPondok: rows };
+  }, [rapor, datasetPondok]);
 
   if (loading) return <p className="p-4 text-black">⏳ Memuat...</p>;
   if (!rapor)
@@ -357,17 +406,12 @@ if (rawVal === undefined) {
   const arabMap = new Map(
     datasetPondok.map((d) => [String(d.nama).toLowerCase(), d.arab || ""])
   );
-  const getArab = (nama) =>
-    arabMap.get(String(nama).toLowerCase()) || "";
+  const getArab = (nama) => arabMap.get(String(nama).toLowerCase()) || "";
 
-  const total = rowsPondok.reduce(
-    (s, r) => s + (Number(r.nilai) || 0),
-    0
-  );
+  const total = rowsPondok.reduce((s, r) => s + (Number(r.nilai) || 0), 0);
   const rata = rowsPondok.length ? total / rowsPondok.length : 0;
 
-  const fmt = (s) =>
-    s && s.includes("_") ? s.replace(/_/g, " ") : s || "";
+  const fmt = (s) => (s && s.includes("_") ? s.replace(/_/g, " ") : s || "");
 
   // ===== DATA HAFALAN =====
   const hafalan = rapor.hafalan || rapor.tahfidz || {};
@@ -384,8 +428,7 @@ if (rawVal === undefined) {
   const semesterUmum = bio?.semesterUmum || biodata.semester;
   const tahunUmum = bio?.tahunPelajaranUmum || biodata.tahun;
   const semesterArab = bio?.semesterArab || "الفصل الأوّل";
-  const tahunArab =
-    bio?.tahunPelajaranArab || toArabicDigits(tahunUmum || "");
+  const tahunArab = bio?.tahunPelajaranArab || toArabicDigits(tahunUmum || "");
 
   const ttdKepalaSekolahUrl = bio?.kepala_sekolah_ttd || "";
   const kopRaporUrl = bio?.kopRaporUrl || "/image/kop.jpg";
@@ -396,7 +439,7 @@ if (rawVal === undefined) {
 
   const handleDownloadPDF = () => {
     if (typeof window !== "undefined") {
-      window.print(); // user pilih "Save as PDF" di dialog print
+      window.print();
     }
   };
 
@@ -407,9 +450,6 @@ if (rawVal === undefined) {
       className="min-h-screen bg-white text-black pb-10 print:bg-white print:p-0"
       style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
     >
-      {/* Wrapper konten:
-          - di layar: max-w-900 dan center
-          - di print: full width (max-w-none) */}
       <div className="w-full max-w-[900px] mx-auto p-4 pb-8 print:max-w-none print:pt-[7mm]">
         {/* KOP */}
         <div className="text-center mb-0">
@@ -527,53 +567,78 @@ if (rawVal === undefined) {
         </table>
 
         {/* TABEL NILAI PONDOK */}
-{/* TABEL NILAI PONDOK (SATU TABEL – AGAR GARIS LURUS) */}
-<table className="w-full border border-black border-collapse text-[9px] leading-[1.1]">
-  <thead className="bg-emerald-100 text-[10px] font-bold">
-    <tr>
-      {/* INDONESIA */}
-      <th className="w-[28px] border border-black text-center px-1 py-[1px]">No</th>
-      <th className="w-[140px] border border-black text-center px-1 py-[1px]">Mata Pelajaran</th>
-      <th className="w-[40px] border border-black text-center px-1 py-[1px]">Angka</th>
-      <th className="w-[150px] border border-black text-center px-1 py-[1px]">Huruf</th>
+        <table className="w-full border border-black border-collapse text-[9px] leading-[1.1]">
+          <thead className="bg-emerald-100 text-[10px] font-bold">
+            <tr>
+              <th className="w-[28px] border border-black text-center px-1 py-[1px]">
+                No
+              </th>
+              <th className="w-[140px] border border-black text-center px-1 py-[1px]">
+                Mata Pelajaran
+              </th>
+              <th className="w-[40px] border border-black text-center px-1 py-[1px]">
+                Angka
+              </th>
+              <th className="w-[150px] border border-black text-center px-1 py-[1px]">
+                Huruf
+              </th>
 
-      {/* ARAB (RTL, BERHADAPAN) */}
-      <th className="w-[150px] border border-black text-center px-1 py-[1px]">كتابةً</th>
-      <th className="w-[40px] border border-black text-center px-1 py-[1px]">رقمًا</th>
-      <th className="w-[150px] border border-black text-center px-1 py-[1px]">المواد الدراسية</th>
-      <th className="w-[28px] border border-black text-center px-1 py-[1px]">رقم</th>
-    </tr>
-  </thead>
+              <th className="w-[150px] border border-black text-center px-1 py-[1px]">
+                كتابةً
+              </th>
+              <th className="w-[40px] border border-black text-center px-1 py-[1px]">
+                رقمًا
+              </th>
+              <th className="w-[150px] border border-black text-center px-1 py-[1px]">
+                المواد الدراسية
+              </th>
+              <th className="w-[28px] border border-black text-center px-1 py-[1px]">
+                رقم
+              </th>
+            </tr>
+          </thead>
 
-  <tbody>
-    {rowsPondok.map((r, i) => {
-      const n = Number(r.nilai);
-      return (
-        <tr key={r.mapel}>
-          <td className="border border-black text-center px-1 py-[1px]">{i + 1}</td>
-          <td className="border border-black px-1 py-[1px]">{fmt(r.mapel)}</td>
-          <td className="border border-black text-center px-1 py-[1px]">{n}</td>
-          <td className="border border-black px-1 py-[1px]">{terbilangID(n)}</td>
+          <tbody>
+            {rowsPondok.map((r, i) => {
+              const n = Number(r.nilai);
+              return (
+                <tr key={r.mapel}>
+                  <td className="border border-black text-center px-1 py-[1px]">
+                    {i + 1}
+                  </td>
+                  <td className="border border-black px-1 py-[1px]">
+                    {fmt(r.mapel)}
+                  </td>
+                  <td className="border border-black text-center px-1 py-[1px]">
+                    {n}
+                  </td>
+                  <td className="border border-black px-1 py-[1px]">
+                    {terbilangID(n)}
+                  </td>
 
-          <td className="border border-black text-right px-1 py-[1px]" dir="rtl">
-            {terbilangAR(n)}
-          </td>
-          <td className="border border-black text-center px-1 py-[1px]">
-            {toArabicDigits(n)}
-          </td>
-          <td className="border border-black text-right px-1 py-[1px]" dir="rtl">
-            {getArab(r.mapel)}
-          </td>
-          <td className="border border-black text-center px-1 py-[1px]">
-            {toArabicDigits(i + 1)}
-          </td>
-        </tr>
-      );
-    })}
-  </tbody>
-</table>
-
-
+                  <td
+                    className="border border-black text-right px-1 py-[1px]"
+                    dir="rtl"
+                  >
+                    {terbilangAR(n)}
+                  </td>
+                  <td className="border border-black text-center px-1 py-[1px]">
+                    {toArabicDigits(n)}
+                  </td>
+                  <td
+                    className="border border-black text-right px-1 py-[1px]"
+                    dir="rtl"
+                  >
+                    {getArab(r.mapel)}
+                  </td>
+                  <td className="border border-black text-center px-1 py-[1px]">
+                    {toArabicDigits(i + 1)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
 
         {/* RINGKASAN NILAI */}
         <div className="grid grid-cols-2 gap-[2px] mt-1">
@@ -811,7 +876,6 @@ if (rawVal === undefined) {
 
         {/* POIN PELANGGARAN */}
         <div className="grid grid-cols-2 gap-[2px] mt-1">
-          {/* Indonesia */}
           <table className="w-full border border-black border-collapse text-[10px] leading-[1.1]">
             <thead className="bg-emerald-100 font-bold">
               <tr>
@@ -835,7 +899,6 @@ if (rawVal === undefined) {
             </tbody>
           </table>
 
-          {/* Arab */}
           <table
             className="w-full border border-black border-collapse text-[10px] leading-[1.1]"
             dir="rtl"
@@ -863,14 +926,26 @@ if (rawVal === undefined) {
           </table>
         </div>
 
+        {/* KETERANGAN NAIK KELAS */}
+        {!isKelasAkhir(rapor.kelas) && (
+          <table className="w-full border border-black border-collapse text-[10px] leading-[1.1] mt-1">
+            <tbody>
+              <tr>
+                <td className="border border-black px-1 py-[1px] text-left">
+                  <span className="font-bold">Keterangan:</span>
+                  <span className="italic"> {getKeteranganNaikKelas(rapor)}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+
         {/* CATATAN WALI */}
         <table className="w-full border border-black border-collapse text-[10px] leading-[1.1] mt-1">
           <tbody>
             <tr>
               <td className="border border-black px-1 py-[1px] text-left">
-                <span className="font-bold">
-                  Catatan Wali Kelas:
-                </span>
+                <span className="font-bold">Catatan Wali Kelas:</span>
                 <span className="italic">
                   {rapor?.catatan_wali &&
                   String(rapor.catatan_wali).trim() !== ""
@@ -883,56 +958,53 @@ if (rawVal === undefined) {
         </table>
 
         {/* TANDA TANGAN */}
-<table className="w-full text-[10px] leading-[1.1] mt-6 border-collapse">
-  <tbody>
-    <tr>
-      {/* Orang tua */}
-      <td className="w-1/3 align-top text-left">
-        Mengetahui
-        <br />
-        Orang Tua/Wali,
-        <div className="h-[70px]" />
-        <div>......................</div>
-      </td>
+        <table className="w-full text-[10px] leading-[1.1] mt-6 border-collapse">
+          <tbody>
+            <tr>
+              {/* Orang tua */}
+              <td className="w-1/3 align-top text-left">
+                Mengetahui
+                <br />
+                Orang Tua/Wali,
+                <div className="h-[70px]" />
+                <div>......................</div>
+              </td>
 
-      {/* Kepala sekolah */}
-      <td className="w-1/3 align-top text-center">
-        Mengetahui
-        <br />
-        Kepala Sekolah
-        <div className="h-[70px] flex flex-col items-center justify-end">
-          {ttdKepalaSekolahUrl && (
-            <img
-              src={ttdKepalaSekolahUrl}
-              alt="TTD Kepala Sekolah"
-              className="h-14 w-40 object-contain mb-1"
-            />
-          )}
-        </div>
-        <div className="inline-block text-left">
-  <div className="font-bold underline">
-    {formatNamaGelar(bio?.kepala_sekolah)}
-  </div>
-  <div className="mt-0.5">NIY. </div>
-</div>
-        
-      </td>
+              {/* Kepala sekolah */}
+              <td className="w-1/3 align-top text-center">
+                Mengetahui
+                <br />
+                Kepala Sekolah
+                <div className="h-[70px] flex flex-col items-center justify-end">
+                  {ttdKepalaSekolahUrl && (
+                    <img
+                      src={ttdKepalaSekolahUrl}
+                      alt="TTD Kepala Sekolah"
+                      className="h-14 w-40 object-contain mb-1"
+                    />
+                  )}
+                </div>
+                <div className="inline-block text-left">
+                  <div className="font-bold underline">
+                    {formatNamaGelar(bio?.kepala_sekolah)}
+                  </div>
+                  <div className="mt-0.5">NIY. </div>
+                </div>
+              </td>
 
-      {/* Wali kelas */}
-      <td className="w-1/3 align-top text-right">
-        {waktuPembagianRaport}
-        <br />
-        Wali Kelas,
-        <div className="h-[70px]" />
-        <div className="font-bold underline">
-          {formatNamaGelar(wali?.nama_wali)}
-        </div>
-       
-      </td>
-    </tr>
-  </tbody>
-</table>
-
+              {/* Wali kelas */}
+              <td className="w-1/3 align-top text-right">
+                {waktuPembagianRaport}
+                <br />
+                Wali Kelas,
+                <div className="h-[70px]" />
+                <div className="font-bold underline">
+                  {formatNamaGelar(wali?.nama_wali)}
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {/* Tombol Download (print) */}

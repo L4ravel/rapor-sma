@@ -1,3 +1,4 @@
+// app/cetak-rapor-pondok/[nisn]/page.jsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -52,7 +53,6 @@ const safeKey = (name) =>
     .replace(/\./g, "_")
     .trim();
 
-// Normalisasi nilai → angka murni (untuk total/rata2)
 function normalizeToNumber(v) {
   if (v === null || v === undefined) return NaN;
   if (typeof v === "number") return v;
@@ -67,7 +67,6 @@ function normalizeToNumber(v) {
   return NaN;
 }
 
-/** Terbilang Indonesia sederhana untuk 0..100 */
 function terbilangID(n) {
   const angka = [
     "Nol",
@@ -83,20 +82,22 @@ function terbilangID(n) {
     "Sepuluh",
     "Sebelas",
   ];
+
   if (isNaN(n)) return "";
   if (n < 0) return "";
   if (n <= 11) return angka[n];
   if (n < 20) return angka[n - 10] + " Belas";
+
   if (n < 100) {
     const puluh = Math.floor(n / 10);
     const sisa = n % 10;
     return angka[puluh] + " Puluh" + (sisa ? " " + angka[sisa] : "");
   }
+
   if (n === 100) return "Seratus";
   return String(n);
 }
 
-/** Digit Latin → Arab Timur */
 function toArabicDigits(input) {
   const map = {
     "0": "٠",
@@ -116,9 +117,9 @@ function toArabicDigits(input) {
   return String(input).replace(/[0-9AB]/g, (ch) => map[ch] || ch);
 }
 
-/** Terbilang Arab sederhana 0..100 */
 function terbilangAR(n) {
   if (isNaN(n) || n < 0 || n > 100) return "";
+
   const upTo10 = [
     "صفر",
     "واحد",
@@ -132,10 +133,12 @@ function terbilangAR(n) {
     "تسعة",
     "عشرة",
   ];
+
   if (n <= 10) return upTo10[n];
   if (n === 11) return "أحد عشر";
   if (n === 12) return "اثنا عشر";
   if (n > 12 && n < 20) return upTo10[n - 10] + " عشر";
+
   const tensMap = {
     20: "عشرون",
     30: "ثلاثون",
@@ -147,22 +150,27 @@ function terbilangAR(n) {
     90: "تسعون",
     100: "مائة",
   };
+
   if (n % 10 === 0) return tensMap[n] || "";
+
   if (n < 100) {
     const tens = Math.floor(n / 10) * 10;
     const unit = n % 10;
     return `${upTo10[unit]} و${tensMap[tens]}`;
   }
+
   return "";
 }
 
-/** Nama: kapital + gelar dipertahankan */
 function formatNamaGelar(str) {
   if (!str) return "—";
+
   const parts = String(str).trim().split(" ");
   if (parts.length === 1) return parts[0].toUpperCase();
+
   const gelar = parts.pop();
   const nama = parts.join(" ").toUpperCase();
+
   return `${nama} ${gelar}`;
 }
 
@@ -285,10 +293,12 @@ export default function CetakRaporPondok() {
         } catch {
           snap = await getDocs(collection(db, "dataset_mapel_pondok"));
         }
+
         const list = snap.docs.map((d) => {
           const data = d.data() || {};
           return { nama: data.nama || "", arab: data.arab || "" };
         });
+
         setDatasetPondok(list);
       } catch (e) {
         console.error("Gagal ambil dataset_mapel_pondok", e);
@@ -335,18 +345,30 @@ export default function CetakRaporPondok() {
 
     // index dataset untuk ordering
     const idxPondok = new Map();
-    datasetPondok.forEach((d, i) =>
-      idxPondok.set(String(d.nama || "").toLowerCase(), i)
-    );
+    const seenIndex = new Set();
 
-    // Untuk setiap mapel di dataset_mapel_pondok (urutan natural dataset),
-    // cari nilai di beberapa tempat:
-    // 1) nested: rapor.pondok[orig]?.nilai OR rapor.pondok[safe]?.nilai
-    // 2) flat: rapor[orig] OR rapor[safe]
+    datasetPondok.forEach((d, i) => {
+      const key = safeKey(d.nama || "");
+      if (!key || seenIndex.has(key)) return;
+
+      seenIndex.add(key);
+      idxPondok.set(key, i);
+    });
+
+    // Anti duplicate:
+    // Jika dataset_mapel_pondok punya nama mapel sama seperti Nahwu / NAHWU / Nahwu spasi,
+    // yang tampil hanya data pertama.
+    const seenMapel = new Set();
+
     const rows = (datasetPondok || [])
       .map((d) => {
-        const orig = d.nama || "";
+        const orig = String(d.nama || "").trim();
         const sk = safeKey(orig);
+
+        if (!orig || !sk) return null;
+        if (seenMapel.has(sk)) return null;
+
+        seenMapel.add(sk);
 
         let rawVal;
 
@@ -354,10 +376,19 @@ export default function CetakRaporPondok() {
         if (rapor?.pondok) {
           const nOrig = rapor.pondok[orig];
           const nSafe = rapor.pondok[sk];
+
           if (nOrig !== undefined && nOrig != null) {
             rawVal = nOrig?.nilai ?? nOrig;
           } else if (nSafe !== undefined && nSafe != null) {
             rawVal = nSafe?.nilai ?? nSafe;
+          } else {
+            const foundNestedKey = Object.keys(rapor.pondok).find(
+              (k) => safeKey(k) === sk
+            );
+            if (foundNestedKey) {
+              const nFound = rapor.pondok[foundNestedKey];
+              rawVal = nFound?.nilai ?? nFound;
+            }
           }
         }
 
@@ -369,21 +400,22 @@ export default function CetakRaporPondok() {
             rawVal = rapor[sk];
           } else {
             const foundKey = Object.keys(rapor).find(
-              (k) => k.toUpperCase() === sk
+              (k) => safeKey(k) === sk
             );
             if (foundKey) rawVal = rapor[foundKey];
           }
         }
 
         const nilaiNum = normalizeToNumber(rawVal);
-        return { mapel: orig, nilai: nilaiNum };
+        return { mapel: orig, nilai: nilaiNum, orderKey: sk };
       })
-      .filter((r) => !isNaN(r.nilai));
+      .filter((r) => r && !isNaN(r.nilai));
 
     // jaga urutan sesuai dataset
     rows.sort((a, b) => {
-      const ia = idxPondok.get(String(a.mapel).toLowerCase());
-      const ib = idxPondok.get(String(b.mapel).toLowerCase());
+      const ia = idxPondok.get(a.orderKey);
+      const ib = idxPondok.get(b.orderKey);
+
       if (ia != null && ib != null && ia !== ib) return ia - ib;
       return String(a.mapel).localeCompare(String(b.mapel), "id");
     });
@@ -404,9 +436,10 @@ export default function CetakRaporPondok() {
     return <p className="p-4 text-red-600">❌ Data tidak ditemukan</p>;
 
   const arabMap = new Map(
-    datasetPondok.map((d) => [String(d.nama).toLowerCase(), d.arab || ""])
+    datasetPondok.map((d) => [safeKey(d.nama), d.arab || ""])
   );
-  const getArab = (nama) => arabMap.get(String(nama).toLowerCase()) || "";
+
+  const getArab = (nama) => arabMap.get(safeKey(nama)) || "";
 
   const total = rowsPondok.reduce((s, r) => s + (Number(r.nilai) || 0), 0);
   const rata = rowsPondok.length ? total / rowsPondok.length : 0;
@@ -599,44 +632,55 @@ export default function CetakRaporPondok() {
           </thead>
 
           <tbody>
-            {rowsPondok.map((r, i) => {
-              const n = Number(r.nilai);
-              return (
-                <tr key={r.mapel}>
-                  <td className="border border-black text-center px-1 py-[1px]">
-                    {i + 1}
-                  </td>
-                  <td className="border border-black px-1 py-[1px]">
-                    {fmt(r.mapel)}
-                  </td>
-                  <td className="border border-black text-center px-1 py-[1px]">
-                    {n}
-                  </td>
-                  <td className="border border-black px-1 py-[1px]">
-                    {terbilangID(n)}
-                  </td>
+            {rowsPondok.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="border border-black text-center px-1 py-[2px]"
+                >
+                  Tidak ada data / لا توجد بيانات
+                </td>
+              </tr>
+            ) : (
+              rowsPondok.map((r, i) => {
+                const n = Number(r.nilai);
+                return (
+                  <tr key={`${r.orderKey}-${i}`}>
+                    <td className="border border-black text-center px-1 py-[1px]">
+                      {i + 1}
+                    </td>
+                    <td className="border border-black px-1 py-[1px]">
+                      {fmt(r.mapel)}
+                    </td>
+                    <td className="border border-black text-center px-1 py-[1px]">
+                      {n}
+                    </td>
+                    <td className="border border-black px-1 py-[1px]">
+                      {terbilangID(n)}
+                    </td>
 
-                  <td
-                    className="border border-black text-right px-1 py-[1px]"
-                    dir="rtl"
-                  >
-                    {terbilangAR(n)}
-                  </td>
-                  <td className="border border-black text-center px-1 py-[1px]">
-                    {toArabicDigits(n)}
-                  </td>
-                  <td
-                    className="border border-black text-right px-1 py-[1px]"
-                    dir="rtl"
-                  >
-                    {getArab(r.mapel)}
-                  </td>
-                  <td className="border border-black text-center px-1 py-[1px]">
-                    {toArabicDigits(i + 1)}
-                  </td>
-                </tr>
-              );
-            })}
+                    <td
+                      className="border border-black text-right px-1 py-[1px]"
+                      dir="rtl"
+                    >
+                      {terbilangAR(n)}
+                    </td>
+                    <td className="border border-black text-center px-1 py-[1px]">
+                      {toArabicDigits(n)}
+                    </td>
+                    <td
+                      className="border border-black text-right px-1 py-[1px]"
+                      dir="rtl"
+                    >
+                      {getArab(r.mapel)}
+                    </td>
+                    <td className="border border-black text-center px-1 py-[1px]">
+                      {toArabicDigits(i + 1)}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
 
